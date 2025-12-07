@@ -13,43 +13,43 @@ arch:
   - aarch64
 
 # Add-on startup behavior
-startup: services
-boot: auto
+#startup: services
+#boot: auto
 
 # Resource allocation
-init: false
+#init: false
 
 # Ingress configuration for web UI
-ingress: true
-ingress_port: 8099
-ingress_stream: true
-webui: "http://[HOST]:[PORT:8099]/"
+#ingress: true
+#ingress_port: 8099
+#ingress_stream: true
+#webui: "http://[HOST]:[PORT:8099]/"
 
 # Panel configuration
-panel_icon: "mdi:lock-smart"
-panel_title: "Guest Locks"
+#panel_icon: "mdi:lock-smart"
+#panel_title: "Guest Locks"
 
 # Host network access for Home Assistant API
-host_network: false
+#host_network: false
 
 # Port mapping (internal only, ingress handles external)
-ports:
-  8099/tcp: null
+#ports:
+#  8099/tcp: null
 
-ports_description:
-  8099/tcp: "Web UI and API (via ingress)"
+#ports_description:
+#  8099/tcp: "Web UI and API (via ingress)"
 
 # Persistent data storage
-map:
-  - addon_config: rw
-  - ssl: ro
+#map:
+#  - addon_config: rw
+#  - ssl: ro
 
 # Environment variables & options
-options:
-  log_level: info
+#options:
+#  log_level: info
 
-schema:
-  log_level: list(debug|info|warning|error)
+#schema:
+#  log_level: list(debug|info|warning|error)
 
 # Home Assistant API access
 homeassistant_api: true
