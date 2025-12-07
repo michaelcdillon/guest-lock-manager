@@ -23,6 +23,7 @@ init: false
 ingress: true
 ingress_port: 8099
 ingress_stream: true
+webui: "http://[HOST]:[PORT:8099]/"
 
 # Panel configuration
 panel_icon: "mdi:lock-smart"
