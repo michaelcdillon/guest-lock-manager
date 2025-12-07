@@ -54,6 +54,3 @@ schema:
 homeassistant_api: true
 auth_api: true
 
-# Labels
-image: "ghcr.io/guest-lock-manager/addon-{arch}"
-
