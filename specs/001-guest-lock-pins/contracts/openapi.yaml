@@ -1,0 +1,990 @@
+openapi: 3.1.0
+info:
+  title: Guest Lock PIN Manager API
+  description: |
+    REST API for the Guest Lock PIN Manager Home Assistant addon.
+    Manages calendar subscriptions, lock configurations, and PIN lifecycle.
+  version: 1.0.0
+  contact:
+    name: Guest Lock Manager
+
+servers:
+  - url: /api
+    description: Home Assistant ingress-proxied API
+
+tags:
+  - name: calendars
+    description: Calendar subscription management
+  - name: locks
+    description: Lock discovery and configuration
+  - name: guest-pins
+    description: Guest PIN lifecycle
+  - name: static-pins
+    description: Static PIN management
+  - name: system
+    description: System status and health
+
+paths:
+  # ============== CALENDARS ==============
+  /calendars:
+    get:
+      tags: [calendars]
+      summary: List all calendar subscriptions
+      operationId: listCalendars
+      responses:
+        '200':
+          description: List of calendars
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  calendars:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Calendar'
+    post:
+      tags: [calendars]
+      summary: Subscribe to a new calendar
+      operationId: createCalendar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarCreate'
+      responses:
+        '201':
+          description: Calendar created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Calendar'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Calendar URL already exists
+
+  /calendars/{id}:
+    parameters:
+      - $ref: '#/components/parameters/CalendarId'
+    get:
+      tags: [calendars]
+      summary: Get calendar details
+      operationId: getCalendar
+      responses:
+        '200':
+          description: Calendar details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Calendar'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [calendars]
+      summary: Update calendar settings
+      operationId: updateCalendar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarUpdate'
+      responses:
+        '200':
+          description: Calendar updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Calendar'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [calendars]
+      summary: Unsubscribe from calendar
+      operationId: deleteCalendar
+      responses:
+        '204':
+          description: Calendar deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /calendars/{id}/sync:
+    parameters:
+      - $ref: '#/components/parameters/CalendarId'
+    post:
+      tags: [calendars]
+      summary: Trigger immediate calendar sync
+      operationId: syncCalendar
+      responses:
+        '202':
+          description: Sync started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Sync initiated"
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /calendars/{id}/locks:
+    parameters:
+      - $ref: '#/components/parameters/CalendarId'
+    get:
+      tags: [calendars]
+      summary: Get locks assigned to calendar
+      operationId: getCalendarLocks
+      responses:
+        '200':
+          description: Assigned locks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  locks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/LockSummary'
+    put:
+      tags: [calendars]
+      summary: Update lock assignments for calendar
+      operationId: updateCalendarLocks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [lock_ids]
+              properties:
+                lock_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '200':
+          description: Locks assigned
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ============== LOCKS ==============
+  /locks:
+    get:
+      tags: [locks]
+      summary: List all managed locks
+      operationId: listLocks
+      responses:
+        '200':
+          description: List of locks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  locks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Lock'
+
+  /locks/discover:
+    post:
+      tags: [locks]
+      summary: Discover locks from Home Assistant
+      operationId: discoverLocks
+      responses:
+        '200':
+          description: Discovery results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  discovered:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DiscoveredLock'
+                  already_managed:
+                    type: integer
+
+  /locks/{id}:
+    parameters:
+      - $ref: '#/components/parameters/LockId'
+    get:
+      tags: [locks]
+      summary: Get lock details
+      operationId: getLock
+      responses:
+        '200':
+          description: Lock details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lock'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [locks]
+      summary: Update lock configuration
+      operationId: updateLock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LockUpdate'
+      responses:
+        '200':
+          description: Lock updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lock'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [locks]
+      summary: Remove lock from management
+      operationId: deleteLock
+      responses:
+        '204':
+          description: Lock removed
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /locks/{id}/pins:
+    parameters:
+      - $ref: '#/components/parameters/LockId'
+    get:
+      tags: [locks]
+      summary: Get all PINs on a lock
+      operationId: getLockPins
+      responses:
+        '200':
+          description: PINs on lock
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  guest_pins:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/GuestPinSummary'
+                  static_pins:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StaticPinSummary'
+                  available_slots:
+                    type: integer
+
+  # ============== GUEST PINS ==============
+  /guest-pins:
+    get:
+      tags: [guest-pins]
+      summary: List all guest PINs
+      operationId: listGuestPins
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, active, expired, conflict]
+        - name: calendar_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of guest PINs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pins:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/GuestPin'
+
+  /guest-pins/{id}:
+    parameters:
+      - $ref: '#/components/parameters/GuestPinId'
+    get:
+      tags: [guest-pins]
+      summary: Get guest PIN details
+      operationId: getGuestPin
+      responses:
+        '200':
+          description: Guest PIN details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuestPin'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [guest-pins]
+      summary: Update guest PIN (set custom code)
+      operationId: updateGuestPin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                custom_pin:
+                  type: string
+                  pattern: '^\d{4,8}$'
+                  description: Owner-specified PIN override
+      responses:
+        '200':
+          description: PIN updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuestPin'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /guest-pins/{id}/regenerate:
+    parameters:
+      - $ref: '#/components/parameters/GuestPinId'
+    post:
+      tags: [guest-pins]
+      summary: Regenerate PIN code
+      operationId: regenerateGuestPin
+      responses:
+        '200':
+          description: PIN regenerated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuestPin'
+        '400':
+          description: PIN not eligible for regeneration (check-in within 24h)
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ============== STATIC PINS ==============
+  /static-pins:
+    get:
+      tags: [static-pins]
+      summary: List all static PINs
+      operationId: listStaticPins
+      responses:
+        '200':
+          description: List of static PINs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pins:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StaticPin'
+    post:
+      tags: [static-pins]
+      summary: Create a static PIN
+      operationId: createStaticPin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaticPinCreate'
+      responses:
+        '201':
+          description: Static PIN created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaticPin'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /static-pins/{id}:
+    parameters:
+      - $ref: '#/components/parameters/StaticPinId'
+    get:
+      tags: [static-pins]
+      summary: Get static PIN details
+      operationId: getStaticPin
+      responses:
+        '200':
+          description: Static PIN details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaticPin'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [static-pins]
+      summary: Update static PIN
+      operationId: updateStaticPin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaticPinUpdate'
+      responses:
+        '200':
+          description: Static PIN updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaticPin'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [static-pins]
+      summary: Delete static PIN
+      operationId: deleteStaticPin
+      responses:
+        '204':
+          description: Static PIN deleted
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ============== SYSTEM ==============
+  /health:
+    get:
+      tags: [system]
+      summary: Health check
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded]
+                  ha_connected:
+                    type: boolean
+                  db_connected:
+                    type: boolean
+
+  /status:
+    get:
+      tags: [system]
+      summary: System status overview
+      operationId: getStatus
+      responses:
+        '200':
+          description: System status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemStatus'
+
+  /settings:
+    get:
+      tags: [system]
+      summary: Get addon settings
+      operationId: getSettings
+      responses:
+        '200':
+          description: Current settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Settings'
+    put:
+      tags: [system]
+      summary: Update addon settings
+      operationId: updateSettings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettingsUpdate'
+      responses:
+        '200':
+          description: Settings updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Settings'
+
+components:
+  parameters:
+    CalendarId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    LockId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    GuestPinId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    StaticPinId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          example: "not_found"
+        message:
+          type: string
+          example: "Calendar not found"
+        details:
+          type: object
+          additionalProperties: true
+
+    Calendar:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        url:
+          type: string
+          format: uri
+        sync_interval_min:
+          type: integer
+        last_sync_at:
+          type: string
+          format: date-time
+          nullable: true
+        sync_status:
+          type: string
+          enum: [pending, syncing, success, error]
+        sync_error:
+          type: string
+          nullable: true
+        enabled:
+          type: boolean
+        lock_count:
+          type: integer
+        pin_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CalendarCreate:
+      type: object
+      required: [name, url]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        url:
+          type: string
+          format: uri
+        sync_interval_min:
+          type: integer
+          minimum: 5
+          default: 15
+        lock_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    CalendarUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        sync_interval_min:
+          type: integer
+          minimum: 5
+        enabled:
+          type: boolean
+
+    Lock:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        entity_id:
+          type: string
+        name:
+          type: string
+        protocol:
+          type: string
+          enum: [zwave, zigbee, wifi, unknown]
+        total_slots:
+          type: integer
+        guest_slots:
+          type: integer
+        static_slots:
+          type: integer
+        available_slots:
+          type: integer
+        online:
+          type: boolean
+        battery_level:
+          type: integer
+          nullable: true
+        direct_integration:
+          type: string
+          enum: [zwave_js_ui, zigbee2mqtt]
+          nullable: true
+        last_seen_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    LockSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        online:
+          type: boolean
+
+    LockUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        guest_slots:
+          type: integer
+          minimum: 0
+        static_slots:
+          type: integer
+          minimum: 0
+
+    DiscoveredLock:
+      type: object
+      properties:
+        entity_id:
+          type: string
+        name:
+          type: string
+        protocol:
+          type: string
+        supports_pin:
+          type: boolean
+
+    GuestPin:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        calendar_id:
+          type: string
+          format: uuid
+        calendar_name:
+          type: string
+        event_summary:
+          type: string
+        pin_code:
+          type: string
+        generation_method:
+          type: string
+          enum: [custom, phone_last4, description_random, date_based]
+        valid_from:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [pending, active, expired, conflict]
+        regeneration_eligible:
+          type: boolean
+        locks:
+          type: array
+          items:
+            $ref: '#/components/schemas/PinLockStatus'
+        created_at:
+          type: string
+          format: date-time
+
+    GuestPinSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        event_summary:
+          type: string
+        pin_code:
+          type: string
+        status:
+          type: string
+        valid_until:
+          type: string
+          format: date-time
+
+    PinLockStatus:
+      type: object
+      properties:
+        lock_id:
+          type: string
+          format: uuid
+        lock_name:
+          type: string
+        slot_number:
+          type: integer
+        sync_status:
+          type: string
+          enum: [pending, synced, failed, removed]
+
+    StaticPin:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        pin_code:
+          type: string
+        enabled:
+          type: boolean
+        always_active:
+          type: boolean
+        schedules:
+          type: array
+          items:
+            $ref: '#/components/schemas/Schedule'
+        locks:
+          type: array
+          items:
+            $ref: '#/components/schemas/PinLockStatus'
+        created_at:
+          type: string
+          format: date-time
+
+    StaticPinSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        enabled:
+          type: boolean
+        currently_active:
+          type: boolean
+
+    StaticPinCreate:
+      type: object
+      required: [name, pin_code, lock_ids]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        pin_code:
+          type: string
+          pattern: '^\d{4,8}$'
+        always_active:
+          type: boolean
+          default: false
+        schedules:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScheduleInput'
+        lock_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+
+    StaticPinUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        pin_code:
+          type: string
+          pattern: '^\d{4,8}$'
+        enabled:
+          type: boolean
+        always_active:
+          type: boolean
+        schedules:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScheduleInput'
+        lock_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    Schedule:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        day_of_week:
+          type: integer
+          minimum: 0
+          maximum: 6
+        day_name:
+          type: string
+        start_time:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+        end_time:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+
+    ScheduleInput:
+      type: object
+      required: [day_of_week, start_time, end_time]
+      properties:
+        day_of_week:
+          type: integer
+          minimum: 0
+          maximum: 6
+        start_time:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+        end_time:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+
+    SystemStatus:
+      type: object
+      properties:
+        ha_connected:
+          type: boolean
+        ha_version:
+          type: string
+        zwave_js_ui_available:
+          type: boolean
+        zigbee2mqtt_available:
+          type: boolean
+        calendars_count:
+          type: integer
+        locks_count:
+          type: integer
+        active_guest_pins:
+          type: integer
+        active_static_pins:
+          type: integer
+        next_sync_at:
+          type: string
+          format: date-time
+          nullable: true
+        pending_operations:
+          type: integer
+
+    Settings:
+      type: object
+      properties:
+        default_sync_interval_min:
+          type: integer
+        min_pin_length:
+          type: integer
+        max_pin_length:
+          type: integer
+        checkin_time:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+        checkout_time:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+        timezone:
+          type: string
+        battery_efficient_mode:
+          type: boolean
+        batch_window_seconds:
+          type: integer
+
+    SettingsUpdate:
+      type: object
+      properties:
+        default_sync_interval_min:
+          type: integer
+          minimum: 5
+        min_pin_length:
+          type: integer
+          minimum: 4
+          maximum: 8
+        max_pin_length:
+          type: integer
+          minimum: 4
+          maximum: 8
+        checkin_time:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+        checkout_time:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+        battery_efficient_mode:
+          type: boolean
+        batch_window_seconds:
+          type: integer
+          minimum: 10
+          maximum: 120
+

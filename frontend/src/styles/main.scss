@@ -1,0 +1,384 @@
+/**
+ * Guest Lock Manager - Custom Styles
+ * 
+ * A modern, dark-first theme with a distinctive aesthetic.
+ * Uses Space Mono for a technical feel and custom accent colors.
+ */
+
+// Import Google Fonts
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+// Custom color palette - Midnight with amber accents
+$primary: #f59e0b;       // Amber
+$secondary: #0ea5e9;     // Sky blue
+$success: #10b981;       // Emerald
+$danger: #ef4444;        // Red
+$warning: #f59e0b;       // Amber (same as primary)
+$info: #6366f1;          // Indigo
+
+// Dark theme colors
+$body-bg: #0f172a;       // Slate 900
+$body-color: #e2e8f0;    // Slate 200
+$card-bg: #1e293b;       // Slate 800
+$border-color: #334155;  // Slate 700
+
+// Bootstrap variable overrides (before import)
+$font-family-sans-serif: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+$font-family-monospace: 'Space Mono', ui-monospace, monospace;
+$headings-font-family: 'Space Mono', monospace;
+
+$enable-dark-mode: true;
+$color-mode-type: data;
+
+// Import Bootstrap
+@import 'bootstrap/scss/bootstrap';
+
+// Root variables
+:root {
+  --glm-gradient: linear-gradient(135deg, #{$primary} 0%, #{$secondary} 100%);
+  --glm-surface: #{$card-bg};
+  --glm-surface-hover: #{lighten($card-bg, 5%)};
+  --glm-text-muted: #94a3b8;
+  --glm-border: #{$border-color};
+  --glm-glow: 0 0 20px rgba(#{red($primary)}, #{green($primary)}, #{blue($primary)}, 0.3);
+}
+
+// Base styles
+body {
+  background: $body-bg;
+  background-image: 
+    radial-gradient(ellipse at top, rgba($primary, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom right, rgba($secondary, 0.05) 0%, transparent 50%);
+  min-height: 100vh;
+}
+
+// Navbar styling
+.navbar {
+  background: rgba($card-bg, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--glm-border);
+  
+  .navbar-brand {
+    font-family: var(--bs-font-monospace);
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    
+    .brand-icon {
+      font-size: 1.5rem;
+    }
+  }
+  
+  .nav-link {
+    font-family: var(--bs-font-monospace);
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      background: var(--glm-surface-hover);
+    }
+    
+    &.active {
+      color: $primary;
+      background: rgba($primary, 0.1);
+    }
+  }
+}
+
+// Connection status indicator
+#connection-status {
+  font-family: var(--bs-font-monospace);
+  font-size: 0.75rem;
+  
+  .status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 0.25rem;
+    animation: pulse 2s infinite;
+    
+    &.connected {
+      background: $success;
+    }
+    
+    &.disconnected {
+      background: $danger;
+      animation: none;
+    }
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+// Cards
+.card {
+  background: var(--glm-surface);
+  border: 1px solid var(--glm-border);
+  border-radius: 0.75rem;
+  
+  &:hover {
+    border-color: rgba($primary, 0.5);
+  }
+  
+  .card-header {
+    background: transparent;
+    border-bottom: 1px solid var(--glm-border);
+    font-family: var(--bs-font-monospace);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.875rem;
+  }
+}
+
+// Buttons
+.btn-primary {
+  background: var(--glm-gradient);
+  border: none;
+  font-family: var(--bs-font-monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  
+  &:hover {
+    box-shadow: var(--glm-glow);
+    transform: translateY(-1px);
+  }
+}
+
+.btn-outline-primary {
+  border-color: $primary;
+  color: $primary;
+  
+  &:hover {
+    background: rgba($primary, 0.1);
+    border-color: $primary;
+    color: $primary;
+  }
+}
+
+// Tables
+.table {
+  --bs-table-bg: transparent;
+  
+  thead {
+    font-family: var(--bs-font-monospace);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--glm-text-muted);
+    
+    th {
+      border-bottom: 2px solid var(--glm-border);
+      padding: 1rem 0.75rem;
+    }
+  }
+  
+  tbody {
+    tr {
+      border-bottom: 1px solid var(--glm-border);
+      
+      &:hover {
+        background: var(--glm-surface-hover);
+      }
+    }
+    
+    td {
+      padding: 1rem 0.75rem;
+      vertical-align: middle;
+    }
+  }
+}
+
+// Forms
+.form-control, .form-select {
+  background: $body-bg;
+  border: 1px solid var(--glm-border);
+  color: $body-color;
+  
+  &:focus {
+    background: $body-bg;
+    border-color: $primary;
+    box-shadow: 0 0 0 0.25rem rgba($primary, 0.25);
+    color: $body-color;
+  }
+  
+  &::placeholder {
+    color: var(--glm-text-muted);
+  }
+}
+
+.form-label {
+  font-family: var(--bs-font-monospace);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--glm-text-muted);
+  margin-bottom: 0.5rem;
+}
+
+// Badges
+.badge {
+  font-family: var(--bs-font-monospace);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.4em 0.6em;
+}
+
+// PIN code display
+.pin-code {
+  font-family: var(--bs-font-monospace);
+  font-size: 1.25rem;
+  letter-spacing: 0.2em;
+  background: rgba($primary, 0.1);
+  border: 1px solid rgba($primary, 0.3);
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  display: inline-block;
+}
+
+// Status indicators
+.status-badge {
+  &.online {
+    background: rgba($success, 0.2);
+    color: $success;
+    border: 1px solid rgba($success, 0.3);
+  }
+  
+  &.offline {
+    background: rgba($danger, 0.2);
+    color: $danger;
+    border: 1px solid rgba($danger, 0.3);
+  }
+  
+  &.pending {
+    background: rgba($warning, 0.2);
+    color: $warning;
+    border: 1px solid rgba($warning, 0.3);
+  }
+  
+  &.syncing {
+    background: rgba($info, 0.2);
+    color: $info;
+    border: 1px solid rgba($info, 0.3);
+  }
+}
+
+// Toast notifications
+.toast {
+  background: var(--glm-surface);
+  border: 1px solid var(--glm-border);
+  
+  &.toast-error {
+    border-color: $danger;
+  }
+  
+  &.toast-success {
+    border-color: $success;
+  }
+  
+  &.toast-warning {
+    border-color: $warning;
+  }
+}
+
+// Loading spinner
+.spinner-border {
+  width: 3rem;
+  height: 3rem;
+  border-width: 0.2rem;
+}
+
+// Dashboard stats
+.stat-card {
+  text-align: center;
+  padding: 1.5rem;
+  
+  .stat-value {
+    font-family: var(--bs-font-monospace);
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: $primary;
+    line-height: 1;
+  }
+  
+  .stat-label {
+    font-family: var(--bs-font-monospace);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--glm-text-muted);
+    margin-top: 0.5rem;
+  }
+}
+
+// Calendar sync status
+.sync-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  
+  .sync-icon {
+    width: 1rem;
+    height: 1rem;
+    
+    &.syncing {
+      animation: spin 1s linear infinite;
+    }
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+// Lock protocol badges
+.protocol-badge {
+  &.zwave {
+    background: rgba($info, 0.2);
+    color: lighten($info, 10%);
+  }
+  
+  &.zigbee {
+    background: rgba($success, 0.2);
+    color: lighten($success, 10%);
+  }
+  
+  &.wifi {
+    background: rgba($secondary, 0.2);
+    color: lighten($secondary, 10%);
+  }
+}
+
+// Empty state
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--glm-text-muted);
+  
+  .empty-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+  }
+  
+  .empty-title {
+    font-family: var(--bs-font-monospace);
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .empty-description {
+    font-size: 0.875rem;
+    margin-bottom: 1.5rem;
+  }
+}
+

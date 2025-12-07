@@ -1,0 +1,43 @@
+# Git
+.git/
+.gitignore
+
+# Documentation
+docs/
+specs/
+*.md
+!README.md
+
+# IDE
+.vscode/
+.idea/
+
+# Node.js (frontend build happens in Docker)
+frontend/node_modules/
+frontend/dist/
+
+# Go test artifacts
+*.test
+*.out
+coverage/
+
+# Environment files
+.env*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Local data
+data/
+*.db
+*.sqlite
+
+# Specify workflow
+.specify/
+

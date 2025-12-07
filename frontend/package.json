@@ -1,0 +1,21 @@
+{
+  "name": "guest-lock-manager-frontend",
+  "version": "0.1.0",
+  "description": "Frontend UI for Guest Lock PIN Manager Home Assistant addon",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "bootstrap": "^5.3.3"
+  },
+  "devDependencies": {
+    "@types/bootstrap": "^5.2.10",
+    "sass": "^1.77.0",
+    "typescript": "^5.4.5",
+    "vite": "^5.4.0"
+  }
+}
