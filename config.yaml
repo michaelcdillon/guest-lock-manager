@@ -2,7 +2,7 @@
 # https://developers.home-assistant.io/docs/add-ons/configuration
 
 name: "Guest Lock PIN Manager"
-version: "0.0.2"
+version: "0.0.3"
 slug: "guest-lock-manager"
 description: "Automate door lock PINs for short-term rental guests via calendar integration"
 url: "https://github.com/michaelcdillon/guest-lock-manager"
@@ -41,10 +41,10 @@ ports_description:
 
 # Persistent data storage
 map:
-  - addon_config:rw
-  - ssl:ro
+  - addon_config: rw
+  - ssl: ro
 
-# Environment variables
+# Environment variables & options
 options:
   log_level: info
 
@@ -55,4 +55,5 @@ schema:
 homeassistant_api: true
 auth_api: true
 
-image: "mikedillon89/guest-lock-manager:0.0.2"
+# Image to use (optional)
+image: "mikedillon89/guest-lock-manager:0.0.3"
