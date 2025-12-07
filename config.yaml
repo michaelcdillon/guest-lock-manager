@@ -52,8 +52,8 @@ arch:
 #  log_level: list(debug|info|warning|error)
 
 # Home Assistant API access
-homeassistant_api: true
-auth_api: true
+#homeassistant_api: true
+#auth_api: true
 
 # Image to use (optional)
 #image: "mikedillon89/guest-lock-manager:0.0.3"
