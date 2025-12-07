@@ -145,9 +145,14 @@ function renderLockRow(lock: Lock): string {
         ${directIntegration}
       </td>
       <td>
-        <span class="badge status-badge ${lock.online ? 'online' : 'offline'}">
-          ${lock.online ? 'Online' : 'Offline'}
-        </span>
+        <div class="d-flex gap-1">
+          <span class="badge status-badge ${lock.online ? 'online' : 'offline'}">
+            ${lock.online ? 'Online' : 'Offline'}
+          </span>
+          <span class="badge ${lock.state === 'locked' ? 'bg-success' : lock.state === 'unlocked' ? 'bg-warning text-dark' : 'bg-secondary'}">
+            ${lock.state ? lock.state : 'unknown'}
+          </span>
+        </div>
       </td>
       <td class="${batteryClass}">
         ${lock.battery_level != null ? '🔋' : ''} ${batteryDisplay}

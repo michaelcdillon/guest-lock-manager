@@ -15,6 +15,7 @@ type ManagedLock struct {
 	GuestSlots        int        `json:"guest_slots"`
 	StaticSlots       int        `json:"static_slots"`
 	Online            bool       `json:"online"`
+	State             string     `json:"state"`
 	BatteryLevel      *int       `json:"battery_level,omitempty"`
 	LastSeenAt        *time.Time `json:"last_seen_at,omitempty"`
 	DirectIntegration *string    `json:"direct_integration,omitempty"`
@@ -51,4 +52,3 @@ const (
 	DirectZWaveJSUI   DirectIntegrationType = "zwave_js_ui"
 	DirectZigbee2MQTT DirectIntegrationType = "zigbee2mqtt"
 )
-

@@ -56,6 +56,7 @@ export interface Lock {
   guest_slots: number;
   static_slots: number;
   online: boolean;
+  state: string;
   battery_level?: number;
   last_seen_at?: string;
   direct_integration?: string;

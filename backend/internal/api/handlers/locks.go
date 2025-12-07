@@ -20,6 +20,7 @@ type LockResponse struct {
 	GuestSlots        int     `json:"guest_slots"`
 	StaticSlots       int     `json:"static_slots"`
 	Online            bool    `json:"online"`
+	State             string  `json:"state"`
 	BatteryLevel      *int    `json:"battery_level,omitempty"`
 	LastSeenAt        *string `json:"last_seen_at,omitempty"`
 	DirectIntegration *string `json:"direct_integration,omitempty"`
@@ -32,7 +33,7 @@ func ListLocks(db *storage.DB) http.HandlerFunc {
 
 		rows, err := db.QueryContext(ctx, `
 			SELECT id, entity_id, name, protocol, total_slots, guest_slots, static_slots,
-			       online, battery_level, last_seen_at, direct_integration
+			       online, state, battery_level, last_seen_at, direct_integration
 			FROM managed_locks ORDER BY name
 		`)
 		if err != nil {
@@ -44,7 +45,7 @@ func ListLocks(db *storage.DB) http.HandlerFunc {
 		var locks []LockResponse
 		for rows.Next() {
 			var l LockResponse
-			if err := rows.Scan(&l.ID, &l.EntityID, &l.Name, &l.Protocol, &l.TotalSlots, &l.GuestSlots, &l.StaticSlots, &l.Online, &l.BatteryLevel, &l.LastSeenAt, &l.DirectIntegration); err != nil {
+			if err := rows.Scan(&l.ID, &l.EntityID, &l.Name, &l.Protocol, &l.TotalSlots, &l.GuestSlots, &l.StaticSlots, &l.Online, &l.State, &l.BatteryLevel, &l.LastSeenAt, &l.DirectIntegration); err != nil {
 				middleware.WriteError(w, http.StatusInternalServerError, middleware.ErrInternalError, "Failed to scan lock")
 				return
 			}
@@ -88,9 +89,9 @@ func DiscoverLocks(db *storage.DB) http.HandlerFunc {
 
 			id := storage.GenerateID()
 			_, err := db.ExecContext(ctx, `
-				INSERT INTO managed_locks (id, entity_id, name, protocol, online, battery_level, direct_integration)
-				VALUES (?, ?, ?, ?, ?, ?, ?)
-			`, id, d.EntityID, d.Name, d.Protocol, d.Online, d.BatteryLevel, d.DirectIntegration)
+				INSERT INTO managed_locks (id, entity_id, name, protocol, online, state, battery_level, direct_integration)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			`, id, d.EntityID, d.Name, d.Protocol, d.Online, d.State, d.BatteryLevel, d.DirectIntegration)
 
 			if err != nil {
 				continue
@@ -105,6 +106,7 @@ func DiscoverLocks(db *storage.DB) http.HandlerFunc {
 				GuestSlots:        5,
 				StaticSlots:       5,
 				Online:            d.Online,
+				State:             d.State,
 				BatteryLevel:      d.BatteryLevel,
 				DirectIntegration: d.DirectIntegration,
 			})
@@ -128,9 +130,9 @@ func GetLock(db *storage.DB) http.HandlerFunc {
 		var l LockResponse
 		err := db.QueryRowContext(ctx, `
 			SELECT id, entity_id, name, protocol, total_slots, guest_slots, static_slots,
-			       online, battery_level, last_seen_at, direct_integration
+			       online, state, battery_level, last_seen_at, direct_integration
 			FROM managed_locks WHERE id = ?
-		`, id).Scan(&l.ID, &l.EntityID, &l.Name, &l.Protocol, &l.TotalSlots, &l.GuestSlots, &l.StaticSlots, &l.Online, &l.BatteryLevel, &l.LastSeenAt, &l.DirectIntegration)
+		`, id).Scan(&l.ID, &l.EntityID, &l.Name, &l.Protocol, &l.TotalSlots, &l.GuestSlots, &l.StaticSlots, &l.Online, &l.State, &l.BatteryLevel, &l.LastSeenAt, &l.DirectIntegration)
 
 		if err != nil {
 			middleware.WriteError(w, http.StatusNotFound, middleware.ErrNotFound, "Lock not found")
@@ -150,7 +152,7 @@ func UpdateLock(db *storage.DB) http.HandlerFunc {
 
 		var req struct {
 			Name        string `json:"name"`
-		TotalSlots  int    `json:"total_slots"`
+			TotalSlots  int    `json:"total_slots"`
 			GuestSlots  int    `json:"guest_slots"`
 			StaticSlots int    `json:"static_slots"`
 		}
@@ -159,18 +161,18 @@ func UpdateLock(db *storage.DB) http.HandlerFunc {
 			return
 		}
 
-	if req.TotalSlots <= 0 {
-		middleware.WriteError(w, http.StatusBadRequest, middleware.ErrValidation, "total_slots must be greater than zero")
-		return
-	}
-	if req.GuestSlots < 0 || req.StaticSlots < 0 {
-		middleware.WriteError(w, http.StatusBadRequest, middleware.ErrValidation, "guest_slots and static_slots must be non-negative")
-		return
-	}
-	if req.GuestSlots+req.StaticSlots > req.TotalSlots {
-		middleware.WriteError(w, http.StatusBadRequest, middleware.ErrValidation, "guest_slots + static_slots cannot exceed total_slots")
-		return
-	}
+		if req.TotalSlots <= 0 {
+			middleware.WriteError(w, http.StatusBadRequest, middleware.ErrValidation, "total_slots must be greater than zero")
+			return
+		}
+		if req.GuestSlots < 0 || req.StaticSlots < 0 {
+			middleware.WriteError(w, http.StatusBadRequest, middleware.ErrValidation, "guest_slots and static_slots must be non-negative")
+			return
+		}
+		if req.GuestSlots+req.StaticSlots > req.TotalSlots {
+			middleware.WriteError(w, http.StatusBadRequest, middleware.ErrValidation, "guest_slots + static_slots cannot exceed total_slots")
+			return
+		}
 
 		result, err := db.ExecContext(ctx, `
 			UPDATE managed_locks SET

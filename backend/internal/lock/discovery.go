@@ -12,6 +12,7 @@ type DiscoveredLock struct {
 	Protocol          string  `json:"protocol"`
 	SupportsPIN       bool    `json:"supports_pin"`
 	Online            bool    `json:"online"`
+	State             string  `json:"state"`
 	BatteryLevel      *int    `json:"battery_level,omitempty"`
 	DirectIntegration *string `json:"direct_integration,omitempty"`
 }
@@ -59,6 +60,7 @@ func (d *Discovery) DiscoverLocks(ctx context.Context) ([]DiscoveredLock, error)
 			Protocol:    detectProtocol(entity),
 			SupportsPIN: supportsPINCode(entity),
 			Online:      entity.State != "unavailable",
+			State:       normalizeState(entity.State),
 			BatteryLevel: func() *int {
 				if entity.Attributes.Battery != nil {
 					return entity.Attributes.Battery
@@ -86,6 +88,19 @@ func detectProtocol(entity LockEntity) string {
 		return "zigbee"
 	case strings.Contains(id, "wifi") || strings.Contains(id, "august") || strings.Contains(id, "yale"):
 		return "wifi"
+	default:
+		return "unknown"
+	}
+}
+
+func normalizeState(state string) string {
+	switch strings.ToLower(state) {
+	case "locked":
+		return "locked"
+	case "unlocked":
+		return "unlocked"
+	case "jammed":
+		return "jammed"
 	default:
 		return "unknown"
 	}

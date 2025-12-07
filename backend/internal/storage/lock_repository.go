@@ -30,12 +30,12 @@ func (r *LockRepository) Create(ctx context.Context, lock *models.ManagedLock) e
 	_, err := r.DB().ExecContext(ctx, `
 		INSERT INTO managed_locks (
 			id, entity_id, name, protocol, total_slots, guest_slots, static_slots,
-			online, battery_level, last_seen_at, direct_integration, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			online, state, battery_level, last_seen_at, direct_integration, created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`,
 		lock.ID, lock.EntityID, lock.Name, lock.Protocol,
 		lock.TotalSlots, lock.GuestSlots, lock.StaticSlots,
-		lock.Online, lock.BatteryLevel, lock.LastSeenAt,
+		lock.Online, lock.State, lock.BatteryLevel, lock.LastSeenAt,
 		lock.DirectIntegration, lock.CreatedAt, lock.UpdatedAt,
 	)
 
@@ -52,12 +52,12 @@ func (r *LockRepository) GetByID(ctx context.Context, id string) (*models.Manage
 
 	err := r.DB().QueryRowContext(ctx, `
 		SELECT id, entity_id, name, protocol, total_slots, guest_slots, static_slots,
-			   online, battery_level, last_seen_at, direct_integration, created_at, updated_at
+			   online, state, battery_level, last_seen_at, direct_integration, created_at, updated_at
 		FROM managed_locks WHERE id = ?
 	`, id).Scan(
 		&lock.ID, &lock.EntityID, &lock.Name, &lock.Protocol,
 		&lock.TotalSlots, &lock.GuestSlots, &lock.StaticSlots,
-		&lock.Online, &lock.BatteryLevel, &lock.LastSeenAt,
+		&lock.Online, &lock.State, &lock.BatteryLevel, &lock.LastSeenAt,
 		&lock.DirectIntegration, &lock.CreatedAt, &lock.UpdatedAt,
 	)
 
@@ -77,12 +77,12 @@ func (r *LockRepository) GetByEntityID(ctx context.Context, entityID string) (*m
 
 	err := r.DB().QueryRowContext(ctx, `
 		SELECT id, entity_id, name, protocol, total_slots, guest_slots, static_slots,
-			   online, battery_level, last_seen_at, direct_integration, created_at, updated_at
+			   online, state, battery_level, last_seen_at, direct_integration, created_at, updated_at
 		FROM managed_locks WHERE entity_id = ?
 	`, entityID).Scan(
 		&lock.ID, &lock.EntityID, &lock.Name, &lock.Protocol,
 		&lock.TotalSlots, &lock.GuestSlots, &lock.StaticSlots,
-		&lock.Online, &lock.BatteryLevel, &lock.LastSeenAt,
+		&lock.Online, &lock.State, &lock.BatteryLevel, &lock.LastSeenAt,
 		&lock.DirectIntegration, &lock.CreatedAt, &lock.UpdatedAt,
 	)
 
@@ -100,7 +100,7 @@ func (r *LockRepository) GetByEntityID(ctx context.Context, entityID string) (*m
 func (r *LockRepository) List(ctx context.Context) ([]models.ManagedLock, error) {
 	rows, err := r.DB().QueryContext(ctx, `
 		SELECT id, entity_id, name, protocol, total_slots, guest_slots, static_slots,
-			   online, battery_level, last_seen_at, direct_integration, created_at, updated_at
+			   online, state, battery_level, last_seen_at, direct_integration, created_at, updated_at
 		FROM managed_locks
 		ORDER BY name
 	`)
@@ -115,7 +115,7 @@ func (r *LockRepository) List(ctx context.Context) ([]models.ManagedLock, error)
 		if err := rows.Scan(
 			&lock.ID, &lock.EntityID, &lock.Name, &lock.Protocol,
 			&lock.TotalSlots, &lock.GuestSlots, &lock.StaticSlots,
-			&lock.Online, &lock.BatteryLevel, &lock.LastSeenAt,
+			&lock.Online, &lock.State, &lock.BatteryLevel, &lock.LastSeenAt,
 			&lock.DirectIntegration, &lock.CreatedAt, &lock.UpdatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scanning lock: %w", err)
@@ -133,12 +133,12 @@ func (r *LockRepository) Update(ctx context.Context, lock *models.ManagedLock) e
 	result, err := r.DB().ExecContext(ctx, `
 		UPDATE managed_locks SET
 			name = ?, protocol = ?, total_slots = ?, guest_slots = ?, static_slots = ?,
-			online = ?, battery_level = ?, last_seen_at = ?, direct_integration = ?,
+			online = ?, state = ?, battery_level = ?, last_seen_at = ?, direct_integration = ?,
 			updated_at = ?
 		WHERE id = ?
 	`,
 		lock.Name, lock.Protocol, lock.TotalSlots, lock.GuestSlots, lock.StaticSlots,
-		lock.Online, lock.BatteryLevel, lock.LastSeenAt, lock.DirectIntegration,
+		lock.Online, lock.State, lock.BatteryLevel, lock.LastSeenAt, lock.DirectIntegration,
 		lock.UpdatedAt, lock.ID,
 	)
 
@@ -185,4 +185,3 @@ func (r *LockRepository) UpdateStatus(ctx context.Context, id string, online boo
 
 	return nil
 }
-
