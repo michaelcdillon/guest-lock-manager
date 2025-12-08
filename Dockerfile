@@ -37,9 +37,9 @@ COPY backend/ ./
 RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w" -o /server ./cmd/server
 
 # -----------------------------------------------------------------------------
-# Stage 3: Production Runtime
+# Stage 3: Production Runtime (distroless, alpine/musl)
 # -----------------------------------------------------------------------------
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM gcr.io/distroless/static:nonroot
 
 # Labels for Home Assistant addon
 LABEL \
