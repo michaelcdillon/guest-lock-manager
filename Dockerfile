@@ -23,6 +23,8 @@ RUN npm run build
 # -----------------------------------------------------------------------------
 FROM golang:1.22-bookworm AS backend-builder
 
+ARG VERSION=dev
+
 # Install build dependencies for CGO (required by go-sqlite3)
 RUN apt-get update \
  && apt-get install -y --no-install-recommends build-essential ca-certificates \
@@ -36,7 +38,7 @@ RUN go mod download
 
 # Copy source and build
 COPY backend/ ./
-RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w" -o /server ./cmd/server
+RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w -X main.version=${VERSION}" -o /server ./cmd/server
 
 # -----------------------------------------------------------------------------
 # Stage 3: Production Runtime (distroless, glibc)

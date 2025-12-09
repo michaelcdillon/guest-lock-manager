@@ -19,6 +19,10 @@ import (
 	"github.com/guest-lock-manager/backend/internal/websocket"
 )
 
+// version is set at build time via -ldflags "-X main.version=x.y.z".
+// Defaults to "dev" when not provided.
+var version = "dev"
+
 func main() {
 	// Parse command-line flags
 	addr := flag.String("addr", ":8099", "HTTP server address")
@@ -35,7 +39,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	log.Println("Starting Guest Lock PIN Manager...")
+	log.Printf("Starting Guest Lock PIN Manager (version: %s)...", version)
 
 	// Initialize database
 	if err := os.MkdirAll(*dataDir, 0o755); err != nil {
