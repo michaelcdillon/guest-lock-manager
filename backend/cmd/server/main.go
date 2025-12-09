@@ -38,6 +38,9 @@ func main() {
 	log.Println("Starting Guest Lock PIN Manager...")
 
 	// Initialize database
+	if err := os.MkdirAll(*dataDir, 0o755); err != nil {
+		log.Fatalf("Failed to create data directory %q: %v", *dataDir, err)
+	}
 	dbPath := *dataDir + "/guest-lock-manager.db"
 	db, err := storage.NewDB(dbPath)
 	if err != nil {
