@@ -77,3 +77,4 @@ func (p *GuestPIN) CanRegenerate(now time.Time) bool {
 	return p.ValidFrom.Sub(now) >= 24*time.Hour
 }
 
+

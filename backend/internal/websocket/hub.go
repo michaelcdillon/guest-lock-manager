@@ -115,3 +115,4 @@ func (c *Client) Send() chan []byte {
 	return c.send
 }
 
+

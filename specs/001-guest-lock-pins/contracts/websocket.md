@@ -330,3 +330,4 @@ Client-initiated ping (in addition to protocol-level ping/pong).
 - Max 10 client commands per second
 - Max 100 events per second per client (events are dropped if exceeded)
 
+

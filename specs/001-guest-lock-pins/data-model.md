@@ -284,3 +284,4 @@ All migrations stored in `backend/internal/storage/migrations/` as numbered SQL 
 
 Migration runner executes on startup, tracks applied migrations in `_migrations` table.
 
+

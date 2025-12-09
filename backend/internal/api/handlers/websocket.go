@@ -102,3 +102,4 @@ func handleClientMessage(conn *websocket.Conn, message []byte, client *ws.Client
 	log.Printf("Received WebSocket message: %s", message)
 }
 
+

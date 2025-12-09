@@ -95,3 +95,4 @@ func UpdateSettings(db *storage.DB) http.HandlerFunc {
 	}
 }
 
+

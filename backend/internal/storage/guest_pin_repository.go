@@ -331,3 +331,4 @@ func (r *GuestPINRepository) GetLockAssignments(ctx context.Context, guestPINID 
 	return assignments, rows.Err()
 }
 
+

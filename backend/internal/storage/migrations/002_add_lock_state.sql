@@ -3,3 +3,4 @@ ALTER TABLE managed_locks
 ADD COLUMN state TEXT NOT NULL DEFAULT 'unknown'
     CHECK (state IN ('locked', 'unlocked', 'jammed', 'unknown'));
 
+

@@ -84,3 +84,4 @@ func (p *StaticPINWithSchedules) IsActiveNow() bool {
 	return p.IsActiveAt(time.Now())
 }
 
+

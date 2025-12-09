@@ -265,3 +265,4 @@ func (r *StaticPINRepository) ListPendingSync(ctx context.Context) ([]models.Sta
 	return assignments, nil
 }
 
+

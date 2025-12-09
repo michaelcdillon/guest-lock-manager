@@ -147,3 +147,4 @@ func (c *HAClient) newRequest(ctx context.Context, method, path string, body io.
 	return req, nil
 }
 
+

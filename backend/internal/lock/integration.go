@@ -40,3 +40,4 @@ func probeURL(ctx context.Context, url string) bool {
 	// Consider any non-error HTTP status as available
 	return resp.StatusCode >= 200 && resp.StatusCode < 500
 }
+

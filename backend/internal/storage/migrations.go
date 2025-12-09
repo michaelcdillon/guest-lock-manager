@@ -141,3 +141,4 @@ func applyMigration(db *sql.DB, m migration) error {
 	return tx.Commit()
 }
 
+
