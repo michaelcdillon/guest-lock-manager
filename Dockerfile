@@ -19,12 +19,14 @@ COPY frontend/ ./
 RUN npm run build
 
 # -----------------------------------------------------------------------------
-# Stage 2: Backend Build
+# Stage 2: Backend Build (glibc-based for distroless runtime)
 # -----------------------------------------------------------------------------
-FROM golang:1.22-alpine AS backend-builder
+FROM golang:1.22-bookworm AS backend-builder
 
 # Install build dependencies for CGO (required by go-sqlite3)
-RUN apk add --no-cache gcc musl-dev
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends build-essential ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app/backend
 
@@ -37,9 +39,9 @@ COPY backend/ ./
 RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w" -o /server ./cmd/server
 
 # -----------------------------------------------------------------------------
-# Stage 3: Production Runtime (distroless, alpine/musl)
+# Stage 3: Production Runtime (distroless, glibc)
 # -----------------------------------------------------------------------------
-FROM gcr.io/distroless/static:nonroot
+FROM gcr.io/distroless/base-debian12:nonroot
 
 # Labels for Home Assistant addon
 LABEL \
