@@ -3,7 +3,8 @@ import { resolve } from 'path';
 
 export default defineConfig({
   root: 'src',
-  base: '/',
+  // Use relative base so assets work behind Home Assistant ingress
+  base: './',
   build: {
     outDir: '../dist',
     emptyOutDir: true,

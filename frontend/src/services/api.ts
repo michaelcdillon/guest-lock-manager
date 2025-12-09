@@ -4,7 +4,8 @@
  * Provides type-safe access to the REST API endpoints.
  */
 
-const API_BASE = '/api';
+// Resolve API base relative to current page so ingress prefixes are preserved
+const API_BASE = new URL('./api', window.location.href).pathname;
 
 /** Standard API error response */
 interface ApiError {
