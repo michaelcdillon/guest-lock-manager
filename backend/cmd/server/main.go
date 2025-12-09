@@ -39,6 +39,11 @@ func main() {
 		os.Exit(0)
 	}
 
+	// Allow overriding version via environment (e.g., injected by container build/runtime)
+	if envVer := os.Getenv("VERSION"); envVer != "" {
+		version = envVer
+	}
+
 	log.Printf("Starting Guest Lock PIN Manager (version: %s)...", version)
 
 	// Initialize database

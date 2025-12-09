@@ -13,11 +13,12 @@ import (
 
 // Manager orchestrates lock operations and PIN synchronization.
 type Manager struct {
-	db          *storage.DB
-	lockRepo    *storage.LockRepository
+	db           *storage.DB
+	lockRepo     *storage.LockRepository
 	guestPINRepo *storage.GuestPINRepository
-	haClient    *HAClient
-	
+	haClient     *HAClient
+	zwaveClient  *ZWaveJSUIClient
+
 	// Batching for battery efficiency
 	pendingOps  map[string][]PINOperation
 	batchMu     sync.Mutex
@@ -27,10 +28,10 @@ type Manager struct {
 
 // PINOperation represents a pending PIN operation on a lock.
 type PINOperation struct {
-	LockID    string
-	PINCode   string
+	LockID     string
+	PINCode    string
 	SlotNumber int
-	Operation string // "set" or "clear"
+	Operation  string // "set" or "clear"
 	GuestPINID string
 }
 
@@ -38,6 +39,7 @@ type PINOperation struct {
 func NewManager(db *storage.DB, lockRepo *storage.LockRepository, guestPINRepo *storage.GuestPINRepository, batchWindowSeconds int) *Manager {
 	config := DefaultConfig()
 	haClient := NewHAClient(config)
+	zwaveClient := NewZWaveJSUIClient()
 
 	if batchWindowSeconds <= 0 {
 		batchWindowSeconds = 30
@@ -48,9 +50,51 @@ func NewManager(db *storage.DB, lockRepo *storage.LockRepository, guestPINRepo *
 		lockRepo:     lockRepo,
 		guestPINRepo: guestPINRepo,
 		haClient:     haClient,
+		zwaveClient:  zwaveClient,
 		pendingOps:   make(map[string][]PINOperation),
 		batchWindow:  time.Duration(batchWindowSeconds) * time.Second,
 	}
+}
+
+// pinWriter abstracts how PIN operations are sent (HA API or direct protocol).
+type pinWriter interface {
+	Set(ctx context.Context, slot int, code string) error
+	Clear(ctx context.Context, slot int) error
+	Name() string
+}
+
+type haPinWriter struct {
+	client   *HAClient
+	entityID string
+}
+
+func (w haPinWriter) Set(ctx context.Context, slot int, code string) error {
+	return w.client.SetUserCode(ctx, w.entityID, slot, code)
+}
+
+func (w haPinWriter) Clear(ctx context.Context, slot int) error {
+	return w.client.ClearUserCode(ctx, w.entityID, slot)
+}
+
+func (w haPinWriter) Name() string {
+	return "home_assistant"
+}
+
+type zwavePinWriter struct {
+	client *ZWaveJSUIClient
+	nodeID int
+}
+
+func (w zwavePinWriter) Set(ctx context.Context, slot int, code string) error {
+	return w.client.SetUserCode(ctx, w.nodeID, slot, code)
+}
+
+func (w zwavePinWriter) Clear(ctx context.Context, slot int) error {
+	return w.client.ClearUserCode(ctx, w.nodeID, slot)
+}
+
+func (w zwavePinWriter) Name() string {
+	return "zwave_js_ui"
 }
 
 // SetPIN queues a PIN to be set on a lock.
@@ -103,6 +147,16 @@ func (m *Manager) flushBatch() {
 
 	ctx := context.Background()
 
+	// Preload current lock states so we can fetch node_ids for direct writes.
+	stateMap := make(map[string]LockEntity)
+	if haLocks, err := m.haClient.GetLocks(ctx); err == nil {
+		for _, l := range haLocks {
+			stateMap[l.EntityID] = l
+		}
+	} else {
+		log.Printf("Warning: failed to fetch HA lock states for direct integration: %v", err)
+	}
+
 	for lockID, lockOps := range ops {
 		lock, err := m.lockRepo.GetByID(ctx, lockID)
 		if err != nil || lock == nil {
@@ -110,12 +164,33 @@ func (m *Manager) flushBatch() {
 			continue
 		}
 
+		haWriter := haPinWriter{client: m.haClient, entityID: lock.EntityID}
+		primary := pinWriter(haWriter)
+		var fallback pinWriter
+
+		if lock.DirectIntegration != nil && *lock.DirectIntegration == string(models.DirectZWaveJSUI) {
+			if entity, ok := stateMap[lock.EntityID]; ok && entity.Attributes.NodeID != nil {
+				primary = zwavePinWriter{client: m.zwaveClient, nodeID: *entity.Attributes.NodeID}
+				fallback = haWriter
+			} else {
+				log.Printf("Direct integration requested but node_id missing for lock %s (%s); using HA", lockID, lock.EntityID)
+			}
+		}
+
 		for _, op := range lockOps {
 			var err error
 			if op.Operation == "set" {
-				err = m.haClient.SetUserCode(ctx, lock.EntityID, op.SlotNumber, op.PINCode)
+				err = primary.Set(ctx, op.SlotNumber, op.PINCode)
+				if err != nil && fallback != nil {
+					log.Printf("Direct PIN set failed via %s for lock %s slot %d; falling back: %v", primary.Name(), lockID, op.SlotNumber, err)
+					err = fallback.Set(ctx, op.SlotNumber, op.PINCode)
+				}
 			} else {
-				err = m.haClient.ClearUserCode(ctx, lock.EntityID, op.SlotNumber)
+				err = primary.Clear(ctx, op.SlotNumber)
+				if err != nil && fallback != nil {
+					log.Printf("Direct PIN clear failed via %s for lock %s slot %d; falling back: %v", primary.Name(), lockID, op.SlotNumber, err)
+					err = fallback.Clear(ctx, op.SlotNumber)
+				}
 			}
 
 			// Update sync status
@@ -268,4 +343,3 @@ func (m *Manager) ClearStaticPIN(ctx context.Context, lockID string, slotNumber 
 	m.queueOperation(op)
 	return nil
 }
-

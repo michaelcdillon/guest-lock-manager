@@ -27,9 +27,9 @@ func NewHAClient(config Config) *HAClient {
 
 // LockEntity represents a lock entity from Home Assistant.
 type LockEntity struct {
-	EntityID   string            `json:"entity_id"`
-	State      string            `json:"state"`
-	Attributes LockAttributes    `json:"attributes"`
+	EntityID   string         `json:"entity_id"`
+	State      string         `json:"state"`
+	Attributes LockAttributes `json:"attributes"`
 }
 
 // LockAttributes represents lock entity attributes.
@@ -38,6 +38,7 @@ type LockAttributes struct {
 	DeviceClass  string `json:"device_class,omitempty"`
 	Supported    int    `json:"supported_features"`
 	Battery      *int   `json:"battery,omitempty"`
+	NodeID       *int   `json:"node_id,omitempty"`
 }
 
 // GetLocks retrieves all lock entities from Home Assistant.
@@ -146,5 +147,3 @@ func (c *HAClient) newRequest(ctx context.Context, method, path string, body io.
 
 	return req, nil
 }
-
-
