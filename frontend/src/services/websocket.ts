@@ -29,7 +29,8 @@ class WebSocketClient {
   constructor() {
     // Determine WebSocket URL based on current location
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsPath = new URL('./ws', window.location.href).pathname;
+    // Use API-prefixed path so ingress forwarding preserves the /api prefix
+    const wsPath = new URL('./api/ws', window.location.href).pathname;
     this.url = `${protocol}//${window.location.host}${wsPath}`;
   }
 
