@@ -68,8 +68,8 @@ EXPOSE 8099
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD ["/app/server", "-health-check"]
 
-# Run as non-root user (distroless nonroot image)
-USER nonroot:nonroot
+# Run as root so we can write to /data volume provided by Home Assistant
+USER root
 
 # Start the server
 ENTRYPOINT ["/app/server"]
