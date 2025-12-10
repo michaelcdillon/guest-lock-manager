@@ -38,7 +38,15 @@ type LockAttributes struct {
 	DeviceClass  string `json:"device_class,omitempty"`
 	Supported    int    `json:"supported_features"`
 	Battery      *int   `json:"battery,omitempty"`
+	BatteryLevel *int   `json:"battery_level,omitempty"`
 	NodeID       *int   `json:"node_id,omitempty"`
+}
+
+// EntityState represents a generic HA entity state.
+type EntityState struct {
+	EntityID   string         `json:"entity_id"`
+	State      string         `json:"state"`
+	Attributes map[string]any `json:"attributes"`
 }
 
 // GetLocks retrieves all lock entities from Home Assistant.
@@ -103,6 +111,33 @@ func (c *HAClient) getStates(ctx context.Context) ([]LockEntity, error) {
 	}
 
 	return states, nil
+}
+
+// GetEntityState retrieves a specific entity state by ID.
+func (c *HAClient) GetEntityState(ctx context.Context, entityID string) (*EntityState, error) {
+	path := fmt.Sprintf("/api/states/%s", entityID)
+	req, err := c.newRequest(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("API error (status %d): %s", resp.StatusCode, body)
+	}
+
+	var state EntityState
+	if err := json.NewDecoder(resp.Body).Decode(&state); err != nil {
+		return nil, fmt.Errorf("decoding response: %w", err)
+	}
+
+	return &state, nil
 }
 
 // callService calls a Home Assistant service.

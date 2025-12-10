@@ -2,6 +2,7 @@ package lock
 
 import (
 	"context"
+	"strconv"
 	"strings"
 )
 
@@ -40,6 +41,7 @@ func (d *Discovery) DiscoverLocks(ctx context.Context) ([]DiscoveredLock, error)
 	var locks []DiscoveredLock
 	for _, entity := range entities {
 		var directIntegration *string
+		var nodeOnline *bool
 
 		switch proto := detectProtocol(entity); proto {
 		case "zwave":
@@ -54,21 +56,36 @@ func (d *Discovery) DiscoverLocks(ctx context.Context) ([]DiscoveredLock, error)
 			}
 		}
 
+		battery := firstBattery(entity.Attributes)
+		if battery == nil {
+			battery = d.lookupBatterySensor(ctx, entity.EntityID)
+		}
+
+		if online := d.lookupNodeStatus(ctx, entity.EntityID); online != nil {
+			nodeOnline = online
+		}
+
 		lock := DiscoveredLock{
 			EntityID:    entity.EntityID,
 			Name:        entity.Attributes.FriendlyName,
 			Protocol:    detectProtocol(entity),
 			SupportsPIN: supportsPINCode(entity),
-			Online:      entity.State != "unavailable",
-			State:       normalizeState(entity.State),
-			BatteryLevel: func() *int {
-				if entity.Attributes.Battery != nil {
-					return entity.Attributes.Battery
+			Online: func() bool {
+				if nodeOnline != nil {
+					return *nodeOnline
 				}
-				return nil
+				return entity.State != "unavailable"
 			}(),
+			State:             normalizeState(entity.State),
+			BatteryLevel:      battery,
 			DirectIntegration: directIntegration,
 		}
+
+		// If protocol unknown but node status sensor exists, assume zwave
+		if lock.Protocol == "unknown" && nodeOnline != nil {
+			lock.Protocol = "zwave"
+		}
+
 		locks = append(locks, lock)
 	}
 
@@ -115,3 +132,90 @@ func supportsPINCode(entity LockEntity) bool {
 	const userCodeFeature = 4
 	return entity.Attributes.Supported&userCodeFeature != 0
 }
+
+func firstBattery(attr LockAttributes) *int {
+	if attr.Battery != nil {
+		return attr.Battery
+	}
+	if attr.BatteryLevel != nil {
+		return attr.BatteryLevel
+	}
+	return nil
+}
+
+// lookupBatterySensor tries companion battery sensors like sensor.<lock>_battery_level or _battery.
+func (d *Discovery) lookupBatterySensor(ctx context.Context, lockEntityID string) *int {
+	base := strings.TrimPrefix(lockEntityID, "lock.")
+	if base == "" {
+		return nil
+	}
+	candidates := []string{
+		"sensor." + base + "_battery_level",
+		"sensor." + base + "_battery",
+	}
+
+	for _, cid := range candidates {
+		state, err := d.haClient.GetEntityState(ctx, cid)
+		if err != nil || state == nil {
+			continue
+		}
+
+		// Prefer attributes battery_level/battery, else parse state
+		if val := parseBatteryValue(state.Attributes["battery_level"]); val != nil {
+			return val
+		}
+		if val := parseBatteryValue(state.Attributes["battery"]); val != nil {
+			return val
+		}
+		if val := parseBatteryValue(state.State); val != nil {
+			return val
+		}
+	}
+	return nil
+}
+
+func parseBatteryValue(v any) *int {
+	switch t := v.(type) {
+	case float64:
+		iv := int(t)
+		return &iv
+	case int:
+		iv := t
+		return &iv
+	case int64:
+		iv := int(t)
+		return &iv
+	case string:
+		if t == "" {
+			return nil
+		}
+		if iv, err := strconv.Atoi(t); err == nil {
+			return &iv
+		}
+	}
+	return nil
+}
+
+// lookupNodeStatus reads sensor.<lock>_node_status to improve online/protocol detection.
+func (d *Discovery) lookupNodeStatus(ctx context.Context, lockEntityID string) *bool {
+	base := strings.TrimPrefix(lockEntityID, "lock.")
+	if base == "" {
+		return nil
+	}
+	entityID := "sensor." + base + "_node_status"
+	state, err := d.haClient.GetEntityState(ctx, entityID)
+	if err != nil || state == nil {
+		return nil
+	}
+	val := strings.ToLower(state.State)
+	switch val {
+	case "alive", "awake", "ready":
+		return boolPtr(true)
+	case "dead", "asleep", "sleeping":
+		return boolPtr(false)
+	default:
+		return nil
+	}
+}
+
+func boolPtr(b bool) *bool { return &b }
