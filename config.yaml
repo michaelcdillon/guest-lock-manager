@@ -2,7 +2,7 @@
 # https://developers.home-assistant.io/docs/add-ons/configuration
 
 name: "Guest Lock PIN Manager"
-version: "0.0.12"
+version: "0.0.13"
 slug: "guest-lock-manager"
 description: "Automate door lock PINs for short-term rental guests via calendar integration"
 url: "https://github.com/michaelcdillon/guest-lock-manager"
@@ -47,9 +47,11 @@ map:
 # Environment variables & options
 options:
   log_level: info
+  zwave_js_ui_ws_url: "ws://localhost:3000"
 
 schema:
   log_level: list(debug|info|warning|error)
+  zwave_js_ui_ws_url: str?
 
 # Home Assistant API access
 homeassistant_api: true

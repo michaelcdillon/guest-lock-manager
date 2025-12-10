@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -32,6 +33,26 @@ func loadSetting(ctx context.Context, db *storage.DB, key string) (string, error
 		return "", fmt.Errorf("query setting %s: %w", key, err)
 	}
 	return value, nil
+}
+
+// addonOptions represents the subset of add-on options we care about.
+type addonOptions struct {
+	ZWaveJSUIWSURL string `json:"zwave_js_ui_ws_url"`
+}
+
+// loadAddonOptions loads options from /data/options.json when running as an add-on.
+func loadAddonOptions() addonOptions {
+	data, err := os.ReadFile("/data/options.json")
+	if err != nil {
+		return addonOptions{}
+	}
+
+	var opts addonOptions
+	if err := json.Unmarshal(data, &opts); err != nil {
+		return addonOptions{}
+	}
+
+	return opts
 }
 
 // version is set at build time via -ldflags "-X main.version=x.y.z".
@@ -88,8 +109,10 @@ func main() {
 	lockRepo := storage.NewLockRepository(db)
 	staticPINRepo := storage.NewStaticPINRepository(db)
 
-	// Load persisted Z-Wave JS UI URL into runtime config (falls back to env/default).
-	if url, err := loadSetting(context.Background(), db, "zwave_js_ui_ws_url"); err == nil && url != "" {
+	// Configure Z-Wave JS UI URL in priority order: add-on option -> persisted setting -> env/default.
+	if opts := loadAddonOptions(); opts.ZWaveJSUIWSURL != "" {
+		lock.SetZWaveJSUIURL(opts.ZWaveJSUIWSURL)
+	} else if url, err := loadSetting(context.Background(), db, "zwave_js_ui_ws_url"); err == nil && url != "" {
 		lock.SetZWaveJSUIURL(url)
 	}
 
