@@ -157,6 +157,11 @@ export async function Settings(): Promise<string> {
                   <span>Z-Wave JS UI</span>
                   <span class="badge bg-secondary" id="zwaveStatus">Detecting...</span>
                 </div>
+                <label class="form-label" for="zwaveWsUrl">WebSocket URL</label>
+                <input type="text" class="form-control" id="zwaveWsUrl"
+                  value="${settings.zwave_js_ui_ws_url || 'ws://localhost:3000'}"
+                  placeholder="ws://localhost:3000">
+                <div class="form-text">Full websocket URL to reach Z-Wave JS UI.</div>
                 <p class="form-text mb-0">Direct Z-Wave communication for battery efficiency</p>
               </div>
               <hr>

@@ -3,6 +3,8 @@ package lock
 import (
 	"context"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 )
 
@@ -11,8 +13,9 @@ import (
 
 // IsZWaveJSUIAvailable returns true if a Z-Wave JS UI endpoint responds.
 func IsZWaveJSUIAvailable(ctx context.Context) bool {
-	url := getEnv("ZWAVE_JS_UI_URL", "http://localhost:3000") // UI default
-	return probeURL(ctx, url)
+	wsURL := GetZWaveJSUIURL()
+	httpURL := wsToHTTP(wsURL)
+	return probeURL(ctx, httpURL)
 }
 
 // IsZigbee2MQTTAvailable returns true if a Zigbee2MQTT frontend responds.
@@ -41,3 +44,25 @@ func probeURL(ctx context.Context, url string) bool {
 	return resp.StatusCode >= 200 && resp.StatusCode < 500
 }
 
+// wsToHTTP converts ws/wss URLs to http/https for probing, leaving others unchanged.
+func wsToHTTP(raw string) string {
+	if raw == "" {
+		return "http://localhost:3000"
+	}
+
+	u, err := url.Parse(raw)
+	if err != nil {
+		// fallback: best-effort replacement
+		return strings.Replace(raw, "ws://", "http://", 1)
+	}
+
+	switch u.Scheme {
+	case "ws":
+		u.Scheme = "http"
+	case "wss":
+		u.Scheme = "https"
+	case "":
+		u.Scheme = "http"
+	}
+	return u.String()
+}

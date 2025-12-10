@@ -3,7 +3,9 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -18,6 +20,19 @@ import (
 	"github.com/guest-lock-manager/backend/internal/storage"
 	"github.com/guest-lock-manager/backend/internal/websocket"
 )
+
+// loadSetting fetches a single setting value by key, returning an empty string if missing.
+func loadSetting(ctx context.Context, db *storage.DB, key string) (string, error) {
+	var value string
+	err := db.QueryRowContext(ctx, "SELECT value FROM settings WHERE key = ?", key).Scan(&value)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", nil
+		}
+		return "", fmt.Errorf("query setting %s: %w", key, err)
+	}
+	return value, nil
+}
 
 // version is set at build time via -ldflags "-X main.version=x.y.z".
 // Defaults to "dev" when not provided.
@@ -72,6 +87,11 @@ func main() {
 	guestPINRepo := storage.NewGuestPINRepository(db)
 	lockRepo := storage.NewLockRepository(db)
 	staticPINRepo := storage.NewStaticPINRepository(db)
+
+	// Load persisted Z-Wave JS UI URL into runtime config (falls back to env/default).
+	if url, err := loadSetting(context.Background(), db, "zwave_js_ui_ws_url"); err == nil && url != "" {
+		lock.SetZWaveJSUIURL(url)
+	}
 
 	// Initialize services with default settings
 	// TODO: Load these from settings table

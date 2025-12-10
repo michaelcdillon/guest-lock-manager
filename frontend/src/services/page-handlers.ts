@@ -283,6 +283,7 @@ async function saveSettings(): Promise<void> {
     default_sync_interval_min: (document.getElementById('syncInterval') as HTMLSelectElement).value,
     battery_efficient_mode: (document.getElementById('batteryMode') as HTMLInputElement).checked ? 'true' : 'false',
     batch_window_seconds: (document.getElementById('batchWindow') as HTMLSelectElement).value,
+    zwave_js_ui_ws_url: (document.getElementById('zwaveWsUrl') as HTMLInputElement)?.value || '',
   };
 
   try {

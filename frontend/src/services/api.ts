@@ -103,6 +103,7 @@ export interface Settings {
   checkout_time: string;
   battery_efficient_mode: string;
   batch_window_seconds: string;
+  zwave_js_ui_ws_url: string;
 }
 
 /**

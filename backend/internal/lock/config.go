@@ -3,6 +3,7 @@ package lock
 
 import (
 	"os"
+	"sync/atomic"
 	"time"
 )
 
@@ -39,6 +40,33 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
+var zwaveJSUIWSURL atomic.Value
+
+func init() {
+	zwaveJSUIWSURL.Store(defaultZWaveJSUIWSURL())
+}
+
+func defaultZWaveJSUIWSURL() string {
+	return getEnv("ZWAVE_JS_UI_WS_URL", "ws://localhost:3000")
+}
+
+// SetZWaveJSUIURL overrides the runtime Z-Wave JS UI websocket URL.
+// Accepts ws:// or wss:// URLs; empty values reset to the default.
+func SetZWaveJSUIURL(url string) {
+	if url == "" {
+		url = defaultZWaveJSUIWSURL()
+	}
+	zwaveJSUIWSURL.Store(url)
+}
+
+// GetZWaveJSUIURL returns the currently configured Z-Wave JS UI websocket URL.
+func GetZWaveJSUIURL() string {
+	if v := zwaveJSUIWSURL.Load(); v != nil {
+		return v.(string)
+	}
+	return defaultZWaveJSUIWSURL()
+}
+
 // IsAddonMode returns true if running as a Home Assistant addon.
 func (c Config) IsAddonMode() bool {
 	return c.SupervisorToken != ""
@@ -51,5 +79,3 @@ func (c Config) AuthToken() string {
 	}
 	return c.Token
 }
-
-

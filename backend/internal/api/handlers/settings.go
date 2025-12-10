@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/guest-lock-manager/backend/internal/api/middleware"
+	"github.com/guest-lock-manager/backend/internal/lock"
 	"github.com/guest-lock-manager/backend/internal/storage"
 )
 
@@ -17,6 +18,7 @@ type SettingsResponse struct {
 	CheckoutTime           string `json:"checkout_time"`
 	BatteryEfficientMode   string `json:"battery_efficient_mode"`
 	BatchWindowSeconds     string `json:"batch_window_seconds"`
+	ZWaveJSUIWSURL         string `json:"zwave_js_ui_ws_url"`
 }
 
 // GetSettings returns all settings.
@@ -48,6 +50,12 @@ func GetSettings(db *storage.DB) http.HandlerFunc {
 			CheckoutTime:           settings["checkout_time"],
 			BatteryEfficientMode:   settings["battery_efficient_mode"],
 			BatchWindowSeconds:     settings["batch_window_seconds"],
+			ZWaveJSUIWSURL:         settings["zwave_js_ui_ws_url"],
+		}
+
+		// Provide defaults when not stored
+		if response.ZWaveJSUIWSURL == "" {
+			response.ZWaveJSUIWSURL = lock.GetZWaveJSUIURL()
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -75,6 +83,7 @@ func UpdateSettings(db *storage.DB) http.HandlerFunc {
 			"checkout_time":             req.CheckoutTime,
 			"battery_efficient_mode":    req.BatteryEfficientMode,
 			"batch_window_seconds":      req.BatchWindowSeconds,
+			"zwave_js_ui_ws_url":        req.ZWaveJSUIWSURL,
 		}
 
 		for key, value := range settings {
@@ -90,9 +99,14 @@ func UpdateSettings(db *storage.DB) http.HandlerFunc {
 			}
 		}
 
+		// Update runtime config for immediate effect
+		lock.SetZWaveJSUIURL(req.ZWaveJSUIWSURL)
+		// Reflect effective value back to the client
+		if req.ZWaveJSUIWSURL == "" {
+			req.ZWaveJSUIWSURL = lock.GetZWaveJSUIURL()
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(req)
 	}
 }
-
-

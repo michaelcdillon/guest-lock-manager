@@ -12,7 +12,6 @@ import (
 // ZWaveJSUIClient provides direct PIN operations over the Z-Wave JS UI websocket API.
 // This bypasses Home Assistant for battery-efficient writes when available.
 type ZWaveJSUIClient struct {
-	wsURL   string
 	apiKey  string
 	timeout time.Duration
 }
@@ -22,7 +21,6 @@ type ZWaveJSUIClient struct {
 // ZWAVE_JS_UI_API_KEY optionally sets an Authorization bearer token.
 func NewZWaveJSUIClient() *ZWaveJSUIClient {
 	return &ZWaveJSUIClient{
-		wsURL:   getEnv("ZWAVE_JS_UI_WS_URL", "ws://localhost:3000"),
 		apiKey:  getEnv("ZWAVE_JS_UI_API_KEY", ""),
 		timeout: 5 * time.Second,
 	}
@@ -72,12 +70,14 @@ func (c *ZWaveJSUIClient) call(ctx context.Context, cmd zwaveJSUICommand) error 
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
+	wsURL := GetZWaveJSUIURL()
+
 	header := http.Header{}
 	if c.apiKey != "" {
 		header.Set("Authorization", "Bearer "+c.apiKey)
 	}
 
-	conn, _, err := websocket.DefaultDialer.DialContext(ctx, c.wsURL, header)
+	conn, _, err := websocket.DefaultDialer.DialContext(ctx, wsURL, header)
 	if err != nil {
 		return fmt.Errorf("connect to Z-Wave JS UI: %w", err)
 	}
