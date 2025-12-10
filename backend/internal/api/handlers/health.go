@@ -3,6 +3,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/guest-lock-manager/backend/internal/lock"
@@ -99,6 +100,10 @@ func Status(db *storage.DB, hub *websocket.Hub) http.HandlerFunc {
 			ActiveStaticPins:     activeStaticPins,
 			PendingOperations:    pendingOps,
 		}
+
+		// Log detection result for visibility when the settings page checks status
+		log.Printf("Status check: Z-Wave JS UI available=%v url=%s, Zigbee2MQTT available=%v",
+			zwaveAvailable, lock.GetZWaveJSUIURL(), zigbeeAvailable)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)

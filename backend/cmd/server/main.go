@@ -76,8 +76,11 @@ func main() {
 	}
 
 	// Allow overriding version via environment (e.g., injected by container build/runtime)
+	// Prefer VERSION, then BUILD_VERSION (provided in some addon environments).
 	if envVer := os.Getenv("VERSION"); envVer != "" {
 		version = envVer
+	} else if buildVer := os.Getenv("BUILD_VERSION"); buildVer != "" {
+		version = buildVer
 	}
 
 	log.Printf("Starting Guest Lock PIN Manager (version: %s)...", version)
@@ -114,6 +117,14 @@ func main() {
 		lock.SetZWaveJSUIURL(opts.ZWaveJSUIWSURL)
 	} else if url, err := loadSetting(context.Background(), db, "zwave_js_ui_ws_url"); err == nil && url != "" {
 		lock.SetZWaveJSUIURL(url)
+	}
+
+	// Log Z-Wave JS UI reachability at startup
+	zwURL := lock.GetZWaveJSUIURL()
+	if ok := lock.IsZWaveJSUIAvailable(context.Background()); ok {
+		log.Printf("Z-Wave JS UI reachable at %s", zwURL)
+	} else {
+		log.Printf("Z-Wave JS UI NOT reachable at %s", zwURL)
 	}
 
 	// Initialize services with default settings
