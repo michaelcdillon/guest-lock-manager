@@ -2,7 +2,7 @@
 # https://developers.home-assistant.io/docs/add-ons/configuration
 
 name: "Guest Lock PIN Manager"
-version: "0.0.15"
+version: "0.0.16"
 slug: "guest-lock-manager"
 description: "Automate door lock PINs for short-term rental guests via calendar integration"
 url: "https://github.com/michaelcdillon/guest-lock-manager"
@@ -30,7 +30,7 @@ panel_icon: "mdi:lock-smart"
 panel_title: "Guest Locks"
 
 # Host network access for Home Assistant API
-host_network: false
+host_network: true
 
 # Port mapping (internal only, ingress handles external)
 ports:
@@ -47,7 +47,7 @@ map:
 # Environment variables & options
 options:
   log_level: info
-  zwave_js_ui_ws_url: "ws://localhost:3000"
+  zwave_js_ui_ws_url: "ws://a0d7b954-zwavejs2mqtt:3000"
 
 schema:
   log_level: list(debug|info|warning|error)

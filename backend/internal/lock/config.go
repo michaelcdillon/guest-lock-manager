@@ -47,7 +47,7 @@ func init() {
 }
 
 func defaultZWaveJSUIWSURL() string {
-	return getEnv("ZWAVE_JS_UI_WS_URL", "ws://localhost:3000")
+	return getEnv("ZWAVE_JS_UI_WS_URL", "ws://a0d7b954-zwavejs2mqtt:3000")
 }
 
 // SetZWaveJSUIURL overrides the runtime Z-Wave JS UI websocket URL.
