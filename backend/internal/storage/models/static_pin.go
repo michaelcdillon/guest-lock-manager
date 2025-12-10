@@ -10,6 +10,7 @@ type StaticPIN struct {
 	PINCode      string    `json:"pin_code"`
 	Enabled      bool      `json:"enabled"`
 	AlwaysActive bool      `json:"always_active"`
+	SlotNumber   int       `json:"slot_number"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
@@ -83,5 +84,3 @@ func (p *StaticPINWithSchedules) IsActiveAt(t time.Time) bool {
 func (p *StaticPINWithSchedules) IsActiveNow() bool {
 	return p.IsActiveAt(time.Now())
 }
-
-

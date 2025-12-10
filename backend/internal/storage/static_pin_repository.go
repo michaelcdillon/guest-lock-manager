@@ -27,9 +27,9 @@ func (r *StaticPINRepository) Create(ctx context.Context, pin *models.StaticPIN)
 	pin.UpdatedAt = pin.CreatedAt
 
 	_, err := r.db.ExecContext(ctx, `
-		INSERT INTO static_pins (id, name, pin_code, enabled, always_active, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
-	`, pin.ID, pin.Name, pin.PINCode, pin.Enabled, pin.AlwaysActive, pin.CreatedAt, pin.UpdatedAt)
+		INSERT INTO static_pins (id, name, pin_code, enabled, always_active, slot_number, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`, pin.ID, pin.Name, pin.PINCode, pin.Enabled, pin.AlwaysActive, pin.SlotNumber, pin.CreatedAt, pin.UpdatedAt)
 
 	return err
 }
@@ -38,9 +38,9 @@ func (r *StaticPINRepository) Create(ctx context.Context, pin *models.StaticPIN)
 func (r *StaticPINRepository) GetByID(ctx context.Context, id string) (*models.StaticPINWithSchedules, error) {
 	var pin models.StaticPINWithSchedules
 	err := r.db.QueryRowContext(ctx, `
-		SELECT id, name, pin_code, enabled, always_active, created_at, updated_at
+		SELECT id, name, pin_code, enabled, always_active, slot_number, created_at, updated_at
 		FROM static_pins WHERE id = ?
-	`, id).Scan(&pin.ID, &pin.Name, &pin.PINCode, &pin.Enabled, &pin.AlwaysActive,
+	`, id).Scan(&pin.ID, &pin.Name, &pin.PINCode, &pin.Enabled, &pin.AlwaysActive, &pin.SlotNumber,
 		&pin.CreatedAt, &pin.UpdatedAt)
 
 	if err == sql.ErrNoRows {
@@ -63,7 +63,7 @@ func (r *StaticPINRepository) GetByID(ctx context.Context, id string) (*models.S
 // List retrieves all static PINs.
 func (r *StaticPINRepository) List(ctx context.Context) ([]models.StaticPINWithSchedules, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, name, pin_code, enabled, always_active, created_at, updated_at
+		SELECT id, name, pin_code, enabled, always_active, slot_number, created_at, updated_at
 		FROM static_pins ORDER BY name
 	`)
 	if err != nil {
@@ -74,7 +74,7 @@ func (r *StaticPINRepository) List(ctx context.Context) ([]models.StaticPINWithS
 	var pins []models.StaticPINWithSchedules
 	for rows.Next() {
 		var pin models.StaticPINWithSchedules
-		if err := rows.Scan(&pin.ID, &pin.Name, &pin.PINCode, &pin.Enabled, &pin.AlwaysActive,
+		if err := rows.Scan(&pin.ID, &pin.Name, &pin.PINCode, &pin.Enabled, &pin.AlwaysActive, &pin.SlotNumber,
 			&pin.CreatedAt, &pin.UpdatedAt); err != nil {
 			continue
 		}
@@ -95,7 +95,7 @@ func (r *StaticPINRepository) List(ctx context.Context) ([]models.StaticPINWithS
 // ListEnabled retrieves all enabled static PINs.
 func (r *StaticPINRepository) ListEnabled(ctx context.Context) ([]models.StaticPINWithSchedules, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, name, pin_code, enabled, always_active, created_at, updated_at
+		SELECT id, name, pin_code, enabled, always_active, slot_number, created_at, updated_at
 		FROM static_pins WHERE enabled = 1 ORDER BY name
 	`)
 	if err != nil {
@@ -106,7 +106,7 @@ func (r *StaticPINRepository) ListEnabled(ctx context.Context) ([]models.StaticP
 	var pins []models.StaticPINWithSchedules
 	for rows.Next() {
 		var pin models.StaticPINWithSchedules
-		if err := rows.Scan(&pin.ID, &pin.Name, &pin.PINCode, &pin.Enabled, &pin.AlwaysActive,
+		if err := rows.Scan(&pin.ID, &pin.Name, &pin.PINCode, &pin.Enabled, &pin.AlwaysActive, &pin.SlotNumber,
 			&pin.CreatedAt, &pin.UpdatedAt); err != nil {
 			continue
 		}
@@ -130,9 +130,9 @@ func (r *StaticPINRepository) Update(ctx context.Context, pin *models.StaticPIN)
 
 	_, err := r.db.ExecContext(ctx, `
 		UPDATE static_pins SET
-			name = ?, pin_code = ?, enabled = ?, always_active = ?, updated_at = ?
+			name = ?, pin_code = ?, enabled = ?, always_active = ?, slot_number = ?, updated_at = ?
 		WHERE id = ?
-	`, pin.Name, pin.PINCode, pin.Enabled, pin.AlwaysActive, pin.UpdatedAt, pin.ID)
+	`, pin.Name, pin.PINCode, pin.Enabled, pin.AlwaysActive, pin.SlotNumber, pin.UpdatedAt, pin.ID)
 
 	return err
 }

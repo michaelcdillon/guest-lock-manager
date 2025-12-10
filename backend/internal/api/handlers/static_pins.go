@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
 
@@ -17,6 +18,7 @@ type StaticPinResponse struct {
 	PinCode      string        `json:"pin_code"`
 	Enabled      bool          `json:"enabled"`
 	AlwaysActive bool          `json:"always_active"`
+	SlotNumber   int           `json:"slot_number,omitempty"`
 	Schedules    []PinSchedule `json:"schedules,omitempty"`
 }
 
@@ -34,7 +36,7 @@ func ListStaticPins(db *storage.DB) http.HandlerFunc {
 		ctx := r.Context()
 
 		rows, err := db.QueryContext(ctx, `
-			SELECT id, name, pin_code, enabled, always_active
+			SELECT id, name, pin_code, enabled, always_active, slot_number
 			FROM static_pins ORDER BY name
 		`)
 		if err != nil {
@@ -46,7 +48,7 @@ func ListStaticPins(db *storage.DB) http.HandlerFunc {
 		var pins []StaticPinResponse
 		for rows.Next() {
 			var p StaticPinResponse
-			if err := rows.Scan(&p.ID, &p.Name, &p.PinCode, &p.Enabled, &p.AlwaysActive); err != nil {
+			if err := rows.Scan(&p.ID, &p.Name, &p.PinCode, &p.Enabled, &p.AlwaysActive, &p.SlotNumber); err != nil {
 				continue
 			}
 
@@ -64,6 +66,15 @@ func ListStaticPins(db *storage.DB) http.HandlerFunc {
 					p.Schedules = append(p.Schedules, s)
 				}
 				scheduleRows.Close() // Close immediately, not defer
+			}
+
+			// Slot number from first assignment (if any)
+			var slot sql.NullInt64
+			_ = db.QueryRowContext(ctx, `
+				SELECT slot_number FROM static_pin_locks WHERE static_pin_id = ? LIMIT 1
+			`, p.ID).Scan(&slot)
+			if slot.Valid {
+				p.SlotNumber = int(slot.Int64)
 			}
 
 			pins = append(pins, p)
@@ -88,6 +99,7 @@ func CreateStaticPin(db *storage.DB, hub *websocket.Hub) http.HandlerFunc {
 			PinCode      string        `json:"pin_code"`
 			Enabled      bool          `json:"enabled"`
 			AlwaysActive bool          `json:"always_active"`
+			SlotNumber   int           `json:"slot_number"`
 			Schedules    []PinSchedule `json:"schedules"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -98,6 +110,9 @@ func CreateStaticPin(db *storage.DB, hub *websocket.Hub) http.HandlerFunc {
 		if req.Name == "" || req.PinCode == "" {
 			middleware.WriteError(w, http.StatusBadRequest, middleware.ErrValidation, "Name and PIN code are required")
 			return
+		}
+		if req.SlotNumber <= 0 {
+			req.SlotNumber = 1
 		}
 
 		// Check for duplicate name (case-insensitive)
@@ -110,12 +125,22 @@ func CreateStaticPin(db *storage.DB, hub *websocket.Hub) http.HandlerFunc {
 			return
 		}
 
+		// Validate slot is free across existing static pin assignments
+		var slotConflict int
+		err = db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM static_pin_locks WHERE slot_number = ?
+	`, req.SlotNumber).Scan(&slotConflict)
+		if err == nil && slotConflict > 0 {
+			middleware.WriteError(w, http.StatusConflict, middleware.ErrConflict, "Slot already in use by another static PIN")
+			return
+		}
+
 		id := storage.GenerateID()
 
 		_, err = db.ExecContext(ctx, `
-			INSERT INTO static_pins (id, name, pin_code, enabled, always_active)
-			VALUES (?, ?, ?, ?, ?)
-		`, id, req.Name, req.PinCode, req.Enabled, req.AlwaysActive)
+			INSERT INTO static_pins (id, name, pin_code, enabled, always_active, slot_number)
+			VALUES (?, ?, ?, ?, ?, ?)
+		`, id, req.Name, req.PinCode, req.Enabled, req.AlwaysActive, req.SlotNumber)
 
 		if err != nil {
 			middleware.WriteError(w, http.StatusInternalServerError, middleware.ErrInternalError, "Failed to create static PIN")
@@ -131,12 +156,29 @@ func CreateStaticPin(db *storage.DB, hub *websocket.Hub) http.HandlerFunc {
 			`, scheduleID, id, s.DayOfWeek, s.StartTime, s.EndTime)
 		}
 
+		// Assign to all managed locks with the chosen slot number
+		lockRows, err := db.QueryContext(ctx, `SELECT id FROM managed_locks`)
+		if err == nil {
+			for lockRows.Next() {
+				var lockID string
+				if err := lockRows.Scan(&lockID); err != nil {
+					continue
+				}
+				db.ExecContext(ctx, `
+					INSERT OR REPLACE INTO static_pin_locks (static_pin_id, lock_id, slot_number, sync_status)
+					VALUES (?, ?, ?, 'pending')
+				`, id, lockID, req.SlotNumber)
+			}
+			lockRows.Close()
+		}
+
 		response := StaticPinResponse{
 			ID:           id,
 			Name:         req.Name,
 			PinCode:      req.PinCode,
 			Enabled:      req.Enabled,
 			AlwaysActive: req.AlwaysActive,
+			SlotNumber:   req.SlotNumber,
 			Schedules:    req.Schedules,
 		}
 
@@ -154,9 +196,9 @@ func GetStaticPin(db *storage.DB) http.HandlerFunc {
 
 		var p StaticPinResponse
 		err := db.QueryRowContext(ctx, `
-			SELECT id, name, pin_code, enabled, always_active
+			SELECT id, name, pin_code, enabled, always_active, slot_number
 			FROM static_pins WHERE id = ?
-		`, id).Scan(&p.ID, &p.Name, &p.PinCode, &p.Enabled, &p.AlwaysActive)
+		`, id).Scan(&p.ID, &p.Name, &p.PinCode, &p.Enabled, &p.AlwaysActive, &p.SlotNumber)
 
 		if err != nil {
 			middleware.WriteError(w, http.StatusNotFound, middleware.ErrNotFound, "Static PIN not found")
@@ -179,6 +221,15 @@ func GetStaticPin(db *storage.DB) http.HandlerFunc {
 			}
 		}
 
+		// Slot number
+		var slot sql.NullInt64
+		_ = db.QueryRowContext(ctx, `
+			SELECT slot_number FROM static_pin_locks WHERE static_pin_id = ? LIMIT 1
+		`, p.ID).Scan(&slot)
+		if slot.Valid {
+			p.SlotNumber = int(slot.Int64)
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(p)
 	}
@@ -195,10 +246,22 @@ func UpdateStaticPin(db *storage.DB, hub *websocket.Hub) http.HandlerFunc {
 			PinCode      *string       `json:"pin_code"`
 			Enabled      *bool         `json:"enabled"`
 			AlwaysActive *bool         `json:"always_active"`
+			SlotNumber   *int          `json:"slot_number"`
 			Schedules    []PinSchedule `json:"schedules"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			middleware.WriteError(w, http.StatusBadRequest, middleware.ErrBadRequest, "Invalid request body")
+			return
+		}
+
+		// Load current slot number (for conflict detection and default)
+		var currentSlot int
+		if err := db.QueryRowContext(ctx, `SELECT slot_number FROM static_pins WHERE id = ?`, id).Scan(&currentSlot); err != nil {
+			if err == sql.ErrNoRows {
+				middleware.WriteError(w, http.StatusNotFound, middleware.ErrNotFound, "Static PIN not found")
+				return
+			}
+			middleware.WriteError(w, http.StatusInternalServerError, middleware.ErrInternalError, "Failed to load static PIN")
 			return
 		}
 
@@ -210,6 +273,26 @@ func UpdateStaticPin(db *storage.DB, hub *websocket.Hub) http.HandlerFunc {
 			`, *req.Name, id).Scan(&existingCount)
 			if err == nil && existingCount > 0 {
 				middleware.WriteError(w, http.StatusConflict, middleware.ErrConflict, "A static PIN with this name already exists")
+				return
+			}
+		}
+
+		// Determine desired slot and validate conflicts if changing
+		newSlot := currentSlot
+		if req.SlotNumber != nil {
+			if *req.SlotNumber <= 0 {
+				newSlot = 1
+			} else {
+				newSlot = *req.SlotNumber
+			}
+
+			var slotConflict int
+			err := db.QueryRowContext(ctx, `
+			SELECT COUNT(*) FROM static_pin_locks
+			WHERE slot_number = ? AND static_pin_id != ?
+		`, newSlot, id).Scan(&slotConflict)
+			if err == nil && slotConflict > 0 {
+				middleware.WriteError(w, http.StatusConflict, middleware.ErrConflict, "Slot already in use by another static PIN")
 				return
 			}
 		}
@@ -233,6 +316,10 @@ func UpdateStaticPin(db *storage.DB, hub *websocket.Hub) http.HandlerFunc {
 		if req.AlwaysActive != nil {
 			query += ", always_active = ?"
 			args = append(args, *req.AlwaysActive)
+		}
+		if req.SlotNumber != nil {
+			query += ", slot_number = ?"
+			args = append(args, newSlot)
 		}
 
 		query += " WHERE id = ?"
@@ -265,6 +352,15 @@ func UpdateStaticPin(db *storage.DB, hub *websocket.Hub) http.HandlerFunc {
 			}
 		}
 
+		// Update slot assignments if provided
+		if req.SlotNumber != nil && newSlot > 0 {
+			db.ExecContext(ctx, `
+				UPDATE static_pin_locks
+				SET slot_number = ?, sync_status = 'pending'
+				WHERE static_pin_id = ?
+		`, newSlot, id)
+		}
+
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
@@ -290,4 +386,3 @@ func DeleteStaticPin(db *storage.DB, hub *websocket.Hub) http.HandlerFunc {
 		w.WriteHeader(http.StatusNoContent)
 	}
 }
-

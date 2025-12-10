@@ -137,9 +137,14 @@ function editLock(id: string, name: string, totalSlots: number, guestSlots: numb
 async function saveLock(): Promise<void> {
   const id = (document.getElementById('editLockId') as HTMLInputElement).value;
   const name = (document.getElementById('lockName') as HTMLInputElement).value;
-  const totalSlots = parseInt((document.getElementById('totalSlots') as HTMLInputElement).value);
-  const guestSlots = parseInt((document.getElementById('guestSlots') as HTMLInputElement).value);
-  const staticSlots = parseInt((document.getElementById('staticSlots') as HTMLInputElement).value);
+  const totalSlots = parseInt((document.getElementById('totalSlots') as HTMLInputElement).value, 10);
+  const guestSlots = parseInt((document.getElementById('guestSlots') as HTMLInputElement).value, 10);
+  const staticSlots = parseInt((document.getElementById('staticSlots') as HTMLInputElement).value, 10);
+
+  if (!Number.isFinite(totalSlots) || !Number.isFinite(guestSlots) || !Number.isFinite(staticSlots)) {
+    alert('Please provide valid numbers for slots.');
+    return;
+  }
 
   if (guestSlots + staticSlots > totalSlots) {
     alert('Guest slots + Static slots cannot exceed Total slots.');
@@ -186,11 +191,12 @@ interface Schedule {
   end_time: string;
 }
 
-function editPin(id: string, name: string, code: string, alwaysActive: boolean, schedules: Schedule[]): void {
+function editPin(id: string, name: string, code: string, alwaysActive: boolean, schedules: Schedule[], slotNumber?: number): void {
   (document.getElementById('pinModalTitle') as HTMLElement).textContent = 'Edit Static PIN';
   (document.getElementById('pinId') as HTMLInputElement).value = id;
   (document.getElementById('pinName') as HTMLInputElement).value = name;
   (document.getElementById('pinCode') as HTMLInputElement).value = code;
+  (document.getElementById('pinSlot') as HTMLInputElement).value = String(slotNumber ?? 1);
   (document.getElementById('alwaysActive') as HTMLInputElement).checked = alwaysActive;
   (document.getElementById('scheduleSection') as HTMLElement).style.display = alwaysActive ? 'none' : 'block';
 
@@ -213,7 +219,13 @@ async function savePin(): Promise<void> {
   const id = (document.getElementById('pinId') as HTMLInputElement).value;
   const name = (document.getElementById('pinName') as HTMLInputElement).value;
   const code = (document.getElementById('pinCode') as HTMLInputElement).value;
+  const slotNumber = parseInt((document.getElementById('pinSlot') as HTMLInputElement).value, 10);
   const alwaysActive = (document.getElementById('alwaysActive') as HTMLInputElement).checked;
+
+  if (!Number.isFinite(slotNumber) || slotNumber <= 0) {
+    alert('Slot number must be a positive number.');
+    return;
+  }
 
   // Build schedules
   const schedules: Schedule[] = [];
@@ -233,6 +245,7 @@ async function savePin(): Promise<void> {
     pin_code: code,
     enabled: true,
     always_active: alwaysActive,
+    slot_number: slotNumber,
   };
 
   try {

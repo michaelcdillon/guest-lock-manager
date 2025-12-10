@@ -83,6 +83,7 @@ export interface StaticPin {
   pin_code: string;
   enabled: boolean;
   always_active: boolean;
+  slot_number?: number;
   schedules?: PinSchedule[];
 }
 

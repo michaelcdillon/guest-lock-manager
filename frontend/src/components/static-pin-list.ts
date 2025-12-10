@@ -83,6 +83,11 @@ export async function StaticPinList(): Promise<string> {
                       <input type="text" class="form-control" id="pinCode" 
                              placeholder="4-8 digits" pattern="[0-9]{4,8}" required>
                     </div>
+                  <div class="mb-3">
+                    <label class="form-label" for="pinSlot">Slot Number</label>
+                    <input type="number" class="form-control" id="pinSlot" min="1" max="50" value="1">
+                    <div class="form-text">PIN slot to program on each managed lock.</div>
+                  </div>
                     <div class="form-check mb-3">
                       <input class="form-check-input" type="checkbox" id="alwaysActive">
                       <label class="form-check-label" for="alwaysActive">
@@ -133,6 +138,7 @@ function renderPinCard(pin: StaticPin): string {
     : formatSchedule(pin.schedules || []);
 
   const schedulesJson = JSON.stringify(pin.schedules || []).replace(/"/g, '&quot;');
+  const slotText = pin.slot_number ? `Slot ${pin.slot_number}` : 'Slot not set';
 
   return `
     <div class="col-md-6 col-lg-4">
@@ -151,9 +157,13 @@ function renderPinCard(pin: StaticPin): string {
             <small class="text-muted d-block">Schedule</small>
             <span>${scheduleText}</span>
           </div>
+          <div class="mb-3">
+            <small class="text-muted d-block">Slot</small>
+            <span>${slotText}</span>
+          </div>
           <div class="d-flex gap-2">
             <button class="btn btn-sm btn-outline-primary flex-grow-1" 
-                    onclick="editPin('${pin.id}', '${pin.name}', '${pin.pin_code}', ${pin.always_active}, ${schedulesJson})">
+                    onclick="editPin('${pin.id}', '${pin.name}', '${pin.pin_code}', ${pin.always_active}, ${schedulesJson}, ${pin.slot_number ?? 1})">
               Edit
             </button>
             <button class="btn btn-sm btn-outline-danger" 
