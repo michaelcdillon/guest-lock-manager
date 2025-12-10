@@ -2,7 +2,7 @@
 # https://developers.home-assistant.io/docs/add-ons/configuration
 
 name: "Guest Lock PIN Manager"
-version: "0.0.16"
+version: "0.0.17"
 slug: "guest-lock-manager"
 description: "Automate door lock PINs for short-term rental guests via calendar integration"
 url: "https://github.com/michaelcdillon/guest-lock-manager"
@@ -29,7 +29,7 @@ webui: "http://[HOST]:[PORT:8099]/"
 panel_icon: "mdi:lock-smart"
 panel_title: "Guest Locks"
 
-# Host network access for Home Assistant API
+# Host network access for Z-Wave JS UI WebSocket and Zigbee2MQTT MQTT client
 host_network: true
 
 # Port mapping (internal only, ingress handles external)

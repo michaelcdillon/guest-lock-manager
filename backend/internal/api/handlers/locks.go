@@ -191,7 +191,19 @@ func UpdateLock(db *storage.DB) http.HandlerFunc {
 			return
 		}
 
-		w.WriteHeader(http.StatusNoContent)
+		// Return updated lock
+		var resp LockResponse
+		err = db.QueryRowContext(ctx, `
+			SELECT id, entity_id, name, protocol, total_slots, guest_slots, static_slots, online, state, battery_level, last_seen_at, direct_integration
+			FROM managed_locks WHERE id = ?
+		`, id).Scan(&resp.ID, &resp.EntityID, &resp.Name, &resp.Protocol, &resp.TotalSlots, &resp.GuestSlots, &resp.StaticSlots, &resp.Online, &resp.State, &resp.BatteryLevel, &resp.LastSeenAt, &resp.DirectIntegration)
+		if err != nil {
+			middleware.WriteError(w, http.StatusInternalServerError, middleware.ErrInternalError, "Failed to load updated lock")
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
 	}
 }
 
