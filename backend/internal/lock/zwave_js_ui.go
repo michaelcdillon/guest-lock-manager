@@ -2,9 +2,11 @@ package lock
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -93,21 +95,18 @@ func (c *ZWaveJSUIClient) call(ctx context.Context, cmd zwaveJSUICommand) error 
 
 	_ = conn.SetReadDeadline(deadline)
 
-	var resp zwaveJSUIResponse
-	if err := conn.ReadJSON(&resp); err != nil {
+	_, data, err := conn.ReadMessage()
+	if err != nil {
 		return fmt.Errorf("read response from %s: %w", wsURL, err)
 	}
 
-	if !resp.Success {
-		if resp.Error != "" {
-			return fmt.Errorf("zwave_js_ui error: %s", resp.Error)
-		}
-		return fmt.Errorf("zwave_js_ui error: unknown failure")
-	}
+	var resp zwaveJSUIResponse
+	_ = json.Unmarshal(data, &resp)
 
-	_ = conn.SetReadDeadline(time.Time{})
-	// drain close frame to avoid noisy server logs; ignore errors
-	_, _, _ = conn.ReadMessage()
+	if !resp.Success {
+		// Include raw response for diagnostics (no PIN code in response).
+		return fmt.Errorf("zwave_js_ui error: %s response=%s", resp.Error, strings.TrimSpace(string(data)))
+	}
 
 	log.Printf("Z-Wave JS UI command success via %s in %v (node=%d slot=%v op=%s)", wsURL, time.Since(start), cmd.NodeID, cmd.Args, cmd.MethodName)
 	return nil
