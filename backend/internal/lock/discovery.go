@@ -2,6 +2,7 @@ package lock
 
 import (
 	"context"
+	"log"
 	"strconv"
 	"strings"
 )
@@ -85,6 +86,18 @@ func (d *Discovery) DiscoverLocks(ctx context.Context) ([]DiscoveredLock, error)
 		if lock.Protocol == "unknown" && nodeOnline != nil {
 			lock.Protocol = "zwave"
 		}
+
+		log.Printf("Discovered lock: entity=%s name=%s protocol=%s node_id=%v supports_pin=%v battery=%v direct=%v online=%v state=%s",
+			lock.EntityID,
+			lock.Name,
+			lock.Protocol,
+			entity.Attributes.NodeID,
+			lock.SupportsPIN,
+			lock.BatteryLevel,
+			lock.DirectIntegration,
+			lock.Online,
+			lock.State,
+		)
 
 		locks = append(locks, lock)
 	}
