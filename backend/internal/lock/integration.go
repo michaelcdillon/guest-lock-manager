@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 // Detects availability of direct protocol services with fast, non-blocking probes.
@@ -14,6 +16,10 @@ import (
 // IsZWaveJSUIAvailable returns true if a Z-Wave JS UI endpoint responds.
 func IsZWaveJSUIAvailable(ctx context.Context) bool {
 	wsURL := GetZWaveJSUIURL()
+	// Prefer a short websocket handshake; fall back to HTTP GET probe.
+	if probeWebsocket(ctx, wsURL) {
+		return true
+	}
 	httpURL := wsToHTTP(wsURL)
 	return probeURL(ctx, httpURL)
 }
@@ -25,7 +31,9 @@ func IsZigbee2MQTTAvailable(ctx context.Context) bool {
 }
 
 func probeURL(ctx context.Context, url string) bool {
-	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
+	// Some services (like Z-Wave JS UI) may not respond properly to HEAD,
+	// so use GET with a short timeout.
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return false
 	}
@@ -65,4 +73,20 @@ func wsToHTTP(raw string) string {
 		u.Scheme = "http"
 	}
 	return u.String()
+}
+
+// probeWebsocket attempts a short websocket handshake to the given ws/wss URL.
+func probeWebsocket(ctx context.Context, wsURL string) bool {
+	if wsURL == "" {
+		wsURL = "ws://localhost:3000"
+	}
+	dialer := websocket.Dialer{
+		HandshakeTimeout: 2 * time.Second,
+	}
+	conn, _, err := dialer.DialContext(ctx, wsURL, nil)
+	if err != nil {
+		return false
+	}
+	conn.Close()
+	return true
 }
