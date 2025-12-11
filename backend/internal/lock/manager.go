@@ -172,6 +172,7 @@ func (m *Manager) flushBatch() {
 			if entity, ok := stateMap[lock.EntityID]; ok && entity.Attributes.NodeID != nil {
 				primary = zwavePinWriter{client: m.zwaveClient, nodeID: *entity.Attributes.NodeID}
 				fallback = haWriter
+				log.Printf("Lock %s (%s): using direct zwave_js_ui with node_id=%d (fallback=home_assistant)", lockID, lock.EntityID, *entity.Attributes.NodeID)
 			} else {
 				log.Printf("Direct integration requested but node_id missing for lock %s (%s); using HA", lockID, lock.EntityID)
 			}
