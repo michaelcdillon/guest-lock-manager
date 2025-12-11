@@ -145,7 +145,12 @@ func (m *Manager) flushBatch() {
 	m.batchTimer = nil
 	m.batchMu.Unlock()
 
+	if len(ops) == 0 {
+		return
+	}
+
 	ctx := context.Background()
+	log.Printf("Flushing PIN batch: %d locks with pending ops", len(ops))
 
 	// Preload current lock states so we can fetch node_ids for direct writes.
 	stateMap := make(map[string]LockEntity)
@@ -155,6 +160,10 @@ func (m *Manager) flushBatch() {
 		}
 	} else {
 		log.Printf("Warning: failed to fetch HA lock states for direct integration: %v", err)
+	}
+
+	if len(stateMap) == 0 {
+		log.Printf("Warning: HA lock state map is empty; direct node_id lookups will be skipped")
 	}
 
 	for lockID, lockOps := range ops {
@@ -168,14 +177,15 @@ func (m *Manager) flushBatch() {
 		primary := pinWriter(haWriter)
 		var fallback pinWriter
 
-		if lock.DirectIntegration != nil && *lock.DirectIntegration == string(models.DirectZWaveJSUI) {
-			if entity, ok := stateMap[lock.EntityID]; ok && entity.Attributes.NodeID != nil {
+		// Prefer direct Z-Wave if we have a node_id, even if HA flags don't show code support.
+		if entity, ok := stateMap[lock.EntityID]; ok && entity.Attributes.NodeID != nil {
+			if lock.DirectIntegration != nil && *lock.DirectIntegration == string(models.DirectZWaveJSUI) || lock.Protocol == string(models.ProtocolZWave) {
 				primary = zwavePinWriter{client: m.zwaveClient, nodeID: *entity.Attributes.NodeID}
 				fallback = haWriter
 				log.Printf("Lock %s (%s): using direct zwave_js_ui with node_id=%d (fallback=home_assistant)", lockID, lock.EntityID, *entity.Attributes.NodeID)
-			} else {
-				log.Printf("Direct integration requested but node_id missing for lock %s (%s); using HA", lockID, lock.EntityID)
 			}
+		} else if lock.DirectIntegration != nil && *lock.DirectIntegration == string(models.DirectZWaveJSUI) {
+			log.Printf("Direct integration requested but node_id missing for lock %s (%s); using HA", lockID, lock.EntityID)
 		}
 
 		for _, op := range lockOps {
@@ -192,6 +202,10 @@ func (m *Manager) flushBatch() {
 					log.Printf("Direct PIN clear failed via %s for lock %s slot %d; falling back: %v", primary.Name(), lockID, op.SlotNumber, err)
 					err = fallback.Clear(ctx, op.SlotNumber)
 				}
+			}
+
+			if err == nil {
+				log.Printf("PIN %s succeeded via %s on lock %s slot %d", op.Operation, primary.Name(), lockID, op.SlotNumber)
 			}
 
 			// Update sync status

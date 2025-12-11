@@ -78,12 +78,18 @@ func DiscoverLocks(db *storage.DB) http.HandlerFunc {
 			return
 		}
 
-		// Add new locks to database
+		// Add new locks to database (or update metadata if they already exist)
 		var added []LockResponse
 		for _, d := range discovered {
 			// Check if already exists
 			var exists int
 			if err := db.QueryRowContext(ctx, "SELECT 1 FROM managed_locks WHERE entity_id = ?", d.EntityID).Scan(&exists); err == nil && exists == 1 {
+				// Update metadata (protocol, state, online, battery, direct)
+				_, _ = db.ExecContext(ctx, `
+					UPDATE managed_locks
+					SET protocol = ?, online = ?, state = ?, battery_level = ?, direct_integration = ?
+					WHERE entity_id = ?
+				`, d.Protocol, d.Online, d.State, d.BatteryLevel, d.DirectIntegration, d.EntityID)
 				continue
 			}
 

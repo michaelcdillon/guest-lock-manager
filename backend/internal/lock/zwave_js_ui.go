@@ -3,6 +3,7 @@ package lock
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -71,6 +72,7 @@ func (c *ZWaveJSUIClient) call(ctx context.Context, cmd zwaveJSUICommand) error 
 	defer cancel()
 
 	wsURL := GetZWaveJSUIURL()
+	start := time.Now()
 
 	header := http.Header{}
 	if c.apiKey != "" {
@@ -79,21 +81,21 @@ func (c *ZWaveJSUIClient) call(ctx context.Context, cmd zwaveJSUICommand) error 
 
 	conn, _, err := websocket.DefaultDialer.DialContext(ctx, wsURL, header)
 	if err != nil {
-		return fmt.Errorf("connect to Z-Wave JS UI: %w", err)
+		return fmt.Errorf("connect to Z-Wave JS UI (%s): %w", wsURL, err)
 	}
 	defer conn.Close()
 
 	deadline := time.Now().Add(c.timeout)
 	_ = conn.SetWriteDeadline(deadline)
 	if err := conn.WriteJSON(cmd); err != nil {
-		return fmt.Errorf("send command: %w", err)
+		return fmt.Errorf("send command to %s: %w", wsURL, err)
 	}
 
 	_ = conn.SetReadDeadline(deadline)
 
 	var resp zwaveJSUIResponse
 	if err := conn.ReadJSON(&resp); err != nil {
-		return fmt.Errorf("read response: %w", err)
+		return fmt.Errorf("read response from %s: %w", wsURL, err)
 	}
 
 	if !resp.Success {
@@ -103,5 +105,10 @@ func (c *ZWaveJSUIClient) call(ctx context.Context, cmd zwaveJSUICommand) error 
 		return fmt.Errorf("zwave_js_ui error: unknown failure")
 	}
 
+	_ = conn.SetReadDeadline(time.Time{})
+	// drain close frame to avoid noisy server logs; ignore errors
+	_, _, _ = conn.ReadMessage()
+
+	log.Printf("Z-Wave JS UI command success via %s in %v (node=%d slot=%v op=%s)", wsURL, time.Since(start), cmd.NodeID, cmd.Args, cmd.MethodName)
 	return nil
 }

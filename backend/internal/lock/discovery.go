@@ -16,6 +16,7 @@ type DiscoveredLock struct {
 	Online            bool    `json:"online"`
 	State             string  `json:"state"`
 	BatteryLevel      *int    `json:"battery_level,omitempty"`
+	NodeID            *int    `json:"node_id,omitempty"`
 	DirectIntegration *string `json:"direct_integration,omitempty"`
 }
 
@@ -71,6 +72,7 @@ func (d *Discovery) DiscoverLocks(ctx context.Context) ([]DiscoveredLock, error)
 			Name:        entity.Attributes.FriendlyName,
 			Protocol:    detectProtocol(entity),
 			SupportsPIN: supportsPINCode(entity),
+			NodeID:      entity.Attributes.NodeID,
 			Online: func() bool {
 				if nodeOnline != nil {
 					return *nodeOnline
@@ -91,7 +93,7 @@ func (d *Discovery) DiscoverLocks(ctx context.Context) ([]DiscoveredLock, error)
 			lock.EntityID,
 			lock.Name,
 			lock.Protocol,
-			entity.Attributes.NodeID,
+			lock.NodeID,
 			lock.SupportsPIN,
 			lock.BatteryLevel,
 			lock.DirectIntegration,
