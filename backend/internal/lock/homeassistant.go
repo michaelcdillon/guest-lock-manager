@@ -7,7 +7,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 // HAClient is a client for the Home Assistant API.
@@ -57,9 +61,17 @@ func (c *HAClient) GetLocks(ctx context.Context) ([]LockEntity, error) {
 		return nil, err
 	}
 
+	// Try to enrich with node_id via registry (add-on mode only).
+	nodeIDs := c.getRegistryNodeIDs(ctx)
+
 	var locks []LockEntity
 	for _, state := range states {
 		if len(state.EntityID) > 5 && state.EntityID[:5] == "lock." {
+			if nodeIDs != nil {
+				if nid, ok := nodeIDs[state.EntityID]; ok {
+					state.Attributes.NodeID = &nid
+				}
+			}
 			locks = append(locks, state)
 		}
 	}
@@ -168,6 +180,131 @@ func (c *HAClient) callService(ctx context.Context, domain, service string, data
 	}
 
 	return nil
+}
+
+// getRegistryNodeIDs fetches entity->node_id mappings from the HA registry via websocket.
+// Only works in add-on mode (Supervisor token). Returns nil on any error.
+func (c *HAClient) getRegistryNodeIDs(ctx context.Context) map[string]int {
+	if !c.config.IsAddonMode() {
+		return nil
+	}
+
+	wsURL := strings.Replace(c.config.BaseURL, "http", "ws", 1) + "/websocket"
+	dialer := websocket.Dialer{
+		HandshakeTimeout: 3 * time.Second,
+	}
+
+	conn, _, err := dialer.DialContext(ctx, wsURL, nil)
+	if err != nil {
+		return nil
+	}
+	defer conn.Close()
+
+	// auth
+	authMsg := map[string]any{
+		"type":         "auth",
+		"access_token": c.config.AuthToken(),
+	}
+	if err := conn.WriteJSON(authMsg); err != nil {
+		return nil
+	}
+	var resp map[string]any
+	if err := conn.ReadJSON(&resp); err != nil {
+		return nil
+	}
+	if resp["type"] != "auth_ok" {
+		return nil
+	}
+
+	// entity registry list
+	if err := conn.WriteJSON(map[string]any{"id": 1, "type": "config/entity_registry/list"}); err != nil {
+		return nil
+	}
+	var ents map[string]any
+	for {
+		if err := conn.ReadJSON(&ents); err != nil {
+			return nil
+		}
+		if id, ok := ents["id"].(float64); ok && int(id) == 1 {
+			break
+		}
+	}
+	entResult, ok := ents["result"].([]any)
+	if !ok {
+		return nil
+	}
+	entityToDevice := make(map[string]string)
+	for _, e := range entResult {
+		if m, ok := e.(map[string]any); ok {
+			eid, _ := m["entity_id"].(string)
+			did, _ := m["device_id"].(string)
+			if eid != "" && did != "" {
+				entityToDevice[eid] = did
+			}
+		}
+	}
+
+	if len(entityToDevice) == 0 {
+		return nil
+	}
+
+	// device registry list
+	if err := conn.WriteJSON(map[string]any{"id": 2, "type": "config/device_registry/list"}); err != nil {
+		return nil
+	}
+	var devs map[string]any
+	for {
+		if err := conn.ReadJSON(&devs); err != nil {
+			return nil
+		}
+		if id, ok := devs["id"].(float64); ok && int(id) == 2 {
+			break
+		}
+	}
+	devResult, ok := devs["result"].([]any)
+	if !ok {
+		return nil
+	}
+
+	deviceToNode := make(map[string]int)
+	for _, d := range devResult {
+		m, ok := d.(map[string]any)
+		if !ok {
+			continue
+		}
+		did, _ := m["id"].(string)
+		idents, _ := m["identifiers"].([]any)
+		for _, ident := range idents {
+			if pair, ok := ident.([]any); ok && len(pair) == 2 {
+				provider, _ := pair[0].(string)
+				val, _ := pair[1].(string)
+				if provider == "zwave_js" {
+					parts := strings.Split(val, "-")
+					if len(parts) > 0 {
+						if nid, err := strconv.Atoi(parts[len(parts)-1]); err == nil {
+							deviceToNode[did] = nid
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if len(deviceToNode) == 0 {
+		return nil
+	}
+
+	out := make(map[string]int)
+	for eid, did := range entityToDevice {
+		if nid, ok := deviceToNode[did]; ok {
+			out[eid] = nid
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // newRequest creates a new HTTP request with authentication.
