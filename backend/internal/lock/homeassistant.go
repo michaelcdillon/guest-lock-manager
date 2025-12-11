@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 )
 
 // HAClient is a client for the Home Assistant API.
@@ -161,8 +162,9 @@ func (c *HAClient) callService(ctx context.Context, domain, service string, data
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("API error (status %d): %s", resp.StatusCode, body)
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("API error (status %d) calling %s with payload %s: %s",
+			resp.StatusCode, path, string(body), strings.TrimSpace(string(respBody)))
 	}
 
 	return nil
