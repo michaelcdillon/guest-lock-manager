@@ -203,23 +203,37 @@ func (c *HAClient) getRegistryNodeIDs(ctx context.Context) map[string]int {
 	}
 	defer conn.Close()
 
-	// auth
-	authMsg := map[string]any{
-		"type":         "auth",
-		"access_token": c.config.AuthToken(),
-	}
-	if err := conn.WriteJSON(authMsg); err != nil {
-		log.Printf("Registry lookup failed: auth send error: %v", err)
+	// auth handshake: expect auth_required, then send auth, expect auth_ok
+	var hello map[string]any
+	if err := conn.ReadJSON(&hello); err != nil {
+		log.Printf("Registry lookup failed: auth hello read error: %v", err)
 		return nil
 	}
-	var resp map[string]any
-	if err := conn.ReadJSON(&resp); err != nil {
-		log.Printf("Registry lookup failed: auth read error: %v", err)
+	helloType, _ := hello["type"].(string)
+	if helloType != "auth_required" && helloType != "auth_ok" {
+		log.Printf("Registry lookup failed: unexpected hello type %s", helloType)
 		return nil
 	}
-	if resp["type"] != "auth_ok" {
-		log.Printf("Registry lookup failed: auth not ok (resp=%v)", resp)
-		return nil
+	if helloType == "auth_ok" {
+		// already authenticated (unlikely)
+	} else {
+		authMsg := map[string]any{
+			"type":         "auth",
+			"access_token": c.config.AuthToken(),
+		}
+		if err := conn.WriteJSON(authMsg); err != nil {
+			log.Printf("Registry lookup failed: auth send error: %v", err)
+			return nil
+		}
+		var resp map[string]any
+		if err := conn.ReadJSON(&resp); err != nil {
+			log.Printf("Registry lookup failed: auth read error: %v", err)
+			return nil
+		}
+		if resp["type"] != "auth_ok" {
+			log.Printf("Registry lookup failed: auth not ok (resp=%v)", resp)
+			return nil
+		}
 	}
 
 	// entity registry list

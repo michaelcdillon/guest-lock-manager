@@ -2,7 +2,7 @@
 # https://developers.home-assistant.io/docs/add-ons/configuration
 
 name: "Guest Lock PIN Manager"
-version: "0.0.23-debug"
+version: "0.0.24-debug"
 slug: "guest-lock-manager"
 description: "Automate door lock PINs for short-term rental guests via calendar integration"
 url: "https://github.com/michaelcdillon/guest-lock-manager"
