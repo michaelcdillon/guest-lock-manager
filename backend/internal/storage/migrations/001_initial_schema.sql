@@ -142,3 +142,4 @@ CREATE INDEX idx_lock_entity ON managed_locks(entity_id);
 CREATE INDEX idx_schedule_day ON static_pin_schedules(day_of_week, start_time);
 
 
+
