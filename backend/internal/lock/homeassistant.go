@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -186,6 +187,7 @@ func (c *HAClient) callService(ctx context.Context, domain, service string, data
 // Only works in add-on mode (Supervisor token). Returns nil on any error.
 func (c *HAClient) getRegistryNodeIDs(ctx context.Context) map[string]int {
 	if !c.config.IsAddonMode() {
+		log.Printf("Registry lookup skipped: not running as addon (no Supervisor token).")
 		return nil
 	}
 
@@ -196,6 +198,7 @@ func (c *HAClient) getRegistryNodeIDs(ctx context.Context) map[string]int {
 
 	conn, _, err := dialer.DialContext(ctx, wsURL, nil)
 	if err != nil {
+		log.Printf("Registry lookup failed: websocket dial error: %v", err)
 		return nil
 	}
 	defer conn.Close()
@@ -206,23 +209,28 @@ func (c *HAClient) getRegistryNodeIDs(ctx context.Context) map[string]int {
 		"access_token": c.config.AuthToken(),
 	}
 	if err := conn.WriteJSON(authMsg); err != nil {
+		log.Printf("Registry lookup failed: auth send error: %v", err)
 		return nil
 	}
 	var resp map[string]any
 	if err := conn.ReadJSON(&resp); err != nil {
+		log.Printf("Registry lookup failed: auth read error: %v", err)
 		return nil
 	}
 	if resp["type"] != "auth_ok" {
+		log.Printf("Registry lookup failed: auth not ok (resp=%v)", resp)
 		return nil
 	}
 
 	// entity registry list
 	if err := conn.WriteJSON(map[string]any{"id": 1, "type": "config/entity_registry/list"}); err != nil {
+		log.Printf("Registry lookup failed: entity_registry request error: %v", err)
 		return nil
 	}
 	var ents map[string]any
 	for {
 		if err := conn.ReadJSON(&ents); err != nil {
+			log.Printf("Registry lookup failed: entity_registry read error: %v", err)
 			return nil
 		}
 		if id, ok := ents["id"].(float64); ok && int(id) == 1 {
@@ -231,6 +239,7 @@ func (c *HAClient) getRegistryNodeIDs(ctx context.Context) map[string]int {
 	}
 	entResult, ok := ents["result"].([]any)
 	if !ok {
+		log.Printf("Registry lookup failed: entity_registry result missing or invalid")
 		return nil
 	}
 	entityToDevice := make(map[string]string)
@@ -245,16 +254,19 @@ func (c *HAClient) getRegistryNodeIDs(ctx context.Context) map[string]int {
 	}
 
 	if len(entityToDevice) == 0 {
+		log.Printf("Registry lookup: no entities found in registry result")
 		return nil
 	}
 
 	// device registry list
 	if err := conn.WriteJSON(map[string]any{"id": 2, "type": "config/device_registry/list"}); err != nil {
+		log.Printf("Registry lookup failed: device_registry request error: %v", err)
 		return nil
 	}
 	var devs map[string]any
 	for {
 		if err := conn.ReadJSON(&devs); err != nil {
+			log.Printf("Registry lookup failed: device_registry read error: %v", err)
 			return nil
 		}
 		if id, ok := devs["id"].(float64); ok && int(id) == 2 {
@@ -263,6 +275,7 @@ func (c *HAClient) getRegistryNodeIDs(ctx context.Context) map[string]int {
 	}
 	devResult, ok := devs["result"].([]any)
 	if !ok {
+		log.Printf("Registry lookup failed: device_registry result missing or invalid")
 		return nil
 	}
 
@@ -292,6 +305,7 @@ func (c *HAClient) getRegistryNodeIDs(ctx context.Context) map[string]int {
 	}
 
 	if len(deviceToNode) == 0 {
+		log.Printf("Registry lookup: no zwave_js identifiers found in devices")
 		return nil
 	}
 
@@ -302,8 +316,10 @@ func (c *HAClient) getRegistryNodeIDs(ctx context.Context) map[string]int {
 		}
 	}
 	if len(out) == 0 {
+		log.Printf("Registry lookup: no entity->node_id matches found")
 		return nil
 	}
+	log.Printf("Registry lookup: mapped %d entities to zwave node_ids", len(out))
 	return out
 }
 
