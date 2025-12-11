@@ -88,6 +88,11 @@ func (c *ZWaveJSUIClient) call(ctx context.Context, cmd zwaveJSUICommand) error 
 	defer conn.Close()
 
 	deadline := time.Now().Add(c.timeout)
+
+	// Read initial greeting (usually type=version); ignore errors.
+	_ = conn.SetReadDeadline(time.Now().Add(1 * time.Second))
+	_, _, _ = conn.ReadMessage()
+
 	_ = conn.SetWriteDeadline(deadline)
 	if err := conn.WriteJSON(cmd); err != nil {
 		return fmt.Errorf("send command to %s: %w", wsURL, err)
